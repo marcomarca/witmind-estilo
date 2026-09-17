@@ -8,6 +8,7 @@
 
   const PROTOCOL = 1;
   const DEV_TIMEOUT_MS = 4000;
+  const READY_TIMEOUT_MS = 8000;
   const DEFAULT_CONFIG = Object.freeze({
     app_base: "/local/witmind-ui",
     dev_url: "http://192.168.20.44:5174/witmind-ui.html",
@@ -33,6 +34,8 @@
       this._entityIds = new Set();
       this._lastSentStates = new Map();
       this._subscriptions = new Map();
+      this._readyTimer = null;
+      this._loadRequestId = 0;
       this._messageHandler = (event) => this._onMessage(event);
       this._render();
     }
@@ -43,7 +46,7 @@
           :host { display: block; width: 100%; min-height: 100dvh; background: var(--primary-background-color, #071118); }
           .frame { position: relative; width: 100%; min-height: 100dvh; }
           iframe { display: block; width: 100%; height: 100dvh; min-height: 640px; border: 0; background: var(--primary-background-color, #071118); }
-          .status { position: fixed; inset: 50% auto auto 50%; transform: translate(-50%, -50%); z-index: 2; color: var(--primary-text-color, #f5f6f4); font: 500 13px/1.4 Manrope, system-ui, sans-serif; pointer-events: none; }
+          .status { position: fixed; inset: 50% auto auto 50%; width: min(640px, calc(100vw - 40px)); transform: translate(-50%, -50%); z-index: 2; color: var(--primary-text-color, #f5f6f4); font: 500 13px/1.5 Manrope, system-ui, sans-serif; text-align: center; white-space: pre-wrap; pointer-events: none; }
         </style>
         <div class="frame"><div class="status" aria-live="polite">Cargando Witmind UI…</div></div>`;
     }
@@ -72,6 +75,7 @@
       window.removeEventListener("message", this._messageHandler);
       for (const unsubscribe of this._subscriptions.values()) if (typeof unsubscribe === "function") unsubscribe();
       this._subscriptions.clear();
+      window.clearTimeout(this._readyTimer);
       if (this._iframe) this._iframe.src = "about:blank";
     }
 
@@ -96,28 +100,39 @@
     }
     async _loadFrame() {
       if (!this.isConnected) return;
+      const loadRequestId = ++this._loadRequestId;
       const config = this._config();
       this._mode = this._effectiveMode(config);
       this._ready = false;
+      window.clearTimeout(this._readyTimer);
       this._setStatus("Cargando Witmind UI…");
+      console.info("[Witmind UI] Cargando panel", {
+        title: config.title || config.panel_kind || "Witmind",
+        mode: this._mode,
+        appBase: config.app_base || DEFAULT_CONFIG.app_base,
+      });
       try {
         this._stableUrl = await this._stableSource(config);
       } catch (error) {
         this._stableUrl = `${String(config.app_base || DEFAULT_CONFIG.app_base).replace(/\/$/, "")}/releases/${encodeURIComponent(config.fallback_release || config.version || "0.1.0")}/index.html`;
         this._setStatus("No se pudo leer current.json; usando versión configurada.");
-        console.warn("Witmind: stable manifest unavailable", error);
+        console.error("[Witmind UI] No se pudo leer current.json", error);
       }
+      if (loadRequestId !== this._loadRequestId) return;
       const target = this._mode === "DEV"
         ? (this._storage("witmind_ui_dev_url") || config.dev_url)
         : this._mode === "PREVIEW"
           ? `${String(config.app_base || DEFAULT_CONFIG.app_base).replace(/\/$/, "")}/releases/${encodeURIComponent(this._storage("witmind_ui_preview_version") || config.fallback_release || config.version || "0.1.0")}/index.html`
           : this._stableUrl;
       if (this._mode === "DEV" && !(await this._probeDev(target))) {
+        if (loadRequestId !== this._loadRequestId) return;
         this._mode = "STABLE";
         this._setStatus("DEV no disponible; usando STABLE.");
+        console.warn("[Witmind UI] DEV no disponible; se usa STABLE", { target, stable: this._stableUrl });
         this._mountFrame(this._stableUrl, false);
         return;
       }
+      console.info("[Witmind UI] Iframe seleccionado", { mode: this._mode, target });
       this._mountFrame(target, this._mode === "DEV");
     }
     async _probeDev(url) {
@@ -137,7 +152,22 @@
         this._iframe = document.createElement("iframe");
         this._iframe.title = "Witmind UI";
         this._iframe.setAttribute("allow", "fullscreen");
-        this._iframe.addEventListener("load", () => this._sendInit());
+        this._iframe.addEventListener("load", () => {
+          this._sendInit();
+          window.clearTimeout(this._readyTimer);
+          this._readyTimer = window.setTimeout(() => {
+            if (this._ready) return;
+            const url = this._iframe?.src || this._stableUrl || "desconocida";
+            const message = `La interfaz no respondió al bridge. Verifica que el HTML y sus assets carguen: ${url}`;
+            this._setStatus(message);
+            console.error("[Witmind UI] WITMIND_READY no recibido", { url, mode: this._mode });
+          }, READY_TIMEOUT_MS);
+        });
+        this._iframe.addEventListener("error", () => {
+          const url = this._iframe?.src || this._stableUrl || "desconocida";
+          this._setStatus(`No se pudo cargar la interfaz Witmind: ${url}`);
+          console.error("[Witmind UI] Error cargando iframe", { url });
+        });
         this.shadowRoot.querySelector(".frame")?.append(this._iframe);
       }
       this._iframe.dataset.allowFallback = allowFallback ? "1" : "0";
@@ -195,7 +225,9 @@
       if (message.protocol !== PROTOCOL || message.source !== "witmind-ui") return;
       if (message.type === "WITMIND_READY") {
         this._ready = true;
+        window.clearTimeout(this._readyTimer);
         this._setStatus("");
+        console.info("[Witmind UI] Bridge conectado", { mode: this._mode });
         this._sendInit();
         return;
       }

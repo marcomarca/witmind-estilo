@@ -348,6 +348,15 @@ node --check src/showroom-panel.js
 
 El bridge remoto es antiguo o está cacheado. Verificar `module_url`, subir su versión `?v=...`, reiniciar HA si cambió YAML y hacer recarga fuerte.
 
+Desde el bridge `?v=0.1.4`, una pantalla blanca deja un diagnóstico visible después de ocho segundos y registra mensajes con el prefijo `[Witmind UI]` en la consola del navegador. Los estados posibles permiten separar rápidamente:
+
+- `No se pudo leer current.json`: la ruta `app_base` no responde o la release activa no es válida.
+- `Error cargando iframe`: Home Assistant no pudo abrir el HTML de la release.
+- `WITMIND_READY no recibido`: el HTML abrió, pero su JavaScript o sus assets no arrancaron.
+- `Bridge conectado`: el iframe ya está comunicando con el panel host y el problema restante está en entidades/servicios.
+
+Comprobar directamente `http://<ha>/local/witmind-ui/current.json`, `.../releases/<version>/index.html` y los assets indicados por el HTML; todos deben responder `200`.
+
 ### “No existe sensor…” al iniciar energía
 
 Comprobar que el sensor esté incluido en la suscripción y que el release sea `0.1.2` o posterior. El fix de `0.1.2` carga estadísticas inmediatamente cuando el estado aparece por primera vez.
