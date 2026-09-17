@@ -1,0 +1,38 @@
+/* ==========================================================================
+   WITMIND SIGNATURE UI — MOTION SYSTEM
+   Architectural transitions, duration tokens, and accessibility constraints
+   ========================================================================== */
+
+:root,
+:host {
+  --wit-ease-in-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --wit-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --wit-ease-in: cubic-bezier(0.4, 0, 1, 1);
+
+  --wit-transition-fast: 140ms var(--wit-ease-in-out);
+  --wit-transition-normal: 200ms var(--wit-ease-in-out);
+  --wit-transition-modal: 300ms var(--wit-ease-in-out);
+}
+
+/* Reusable Micro-Interaction Transitions */
+.wit-interactive-transition {
+  transition: background-color var(--wit-transition-fast),
+              border-color var(--wit-transition-fast),
+              color var(--wit-transition-fast),
+              box-shadow var(--wit-transition-fast),
+              transform var(--wit-transition-fast);
+}
+
+.wit-interactive-transition:active {
+  transform: scale(0.98);
+}
+
+/* Reduced Motion Safety Override */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

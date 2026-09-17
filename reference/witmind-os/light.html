@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Witmind OS Golden Reference — Light</title>
+  <link rel="stylesheet" href="./assets/reference.css" />
+</head>
+<body class="light-theme">
+  <!-- Componente Web Nativo Showroom Witmind OS (Modo Claro / Porcelain) -->
+  <showroom-witmind-os id="referencePanel" theme="light"></showroom-witmind-os>
+
+  <!-- Proveedor Reactivo Mock Home Assistant -->
+  <script src="./mock/mock-hass.js"></script>
+
+  <!-- Implementación Showroom Witmind OS -->
+  <script src="./assets/witmind-os.js"></script>
+
+  <!-- Conexión Reactiva al Mock HA -->
+  <script>
+    (function() {
+      function init() {
+        const panel = document.getElementById("referencePanel");
+        if (panel && window.registerMockHassConsumer) {
+          window.registerMockHassConsumer(panel);
+        }
+      }
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+</body>
+</html>

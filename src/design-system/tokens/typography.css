@@ -1,0 +1,126 @@
+/* ==========================================================================
+   WITMIND SIGNATURE UI — TYPOGRAPHY SYSTEM
+   Pure Manrope Variable Typographic Scale & Tabular Numeral Standard
+   ========================================================================== */
+
+:root,
+:host {
+  --wit-font-sans: "Manrope", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Typographic Hierarchy */
+  --wit-type-display-size: 56px;
+  --wit-type-display-line: 1;
+  --wit-type-display-weight: 700;
+  --wit-type-display-letter: -0.03em;
+
+  --wit-type-hero-size: 36px;
+  --wit-type-hero-line: 1.08;
+  --wit-type-hero-weight: 600;
+  --wit-type-hero-letter: -0.025em;
+
+  --wit-type-kpi-size: 32px;
+  --wit-type-kpi-line: 1.05;
+  --wit-type-kpi-weight: 600;
+  --wit-type-kpi-letter: -0.02em;
+
+  --wit-type-title-size: 18px;
+  --wit-type-title-line: 1.2;
+  --wit-type-title-weight: 600;
+  --wit-type-title-letter: -0.01em;
+
+  --wit-type-headline-size: 16px;
+  --wit-type-headline-line: 1.3;
+  --wit-type-headline-weight: 600;
+  --wit-type-headline-letter: -0.005em;
+
+  --wit-type-body-size: 14px;
+  --wit-type-body-line: 1.45;
+  --wit-type-body-weight: 400;
+  --wit-type-body-letter: 0;
+
+  --wit-type-label-size: 12px;
+  --wit-type-label-line: 1.35;
+  --wit-type-label-weight: 600;
+  --wit-type-label-letter: 0.02em;
+
+  --wit-type-meta-size: 11px;
+  --wit-type-meta-line: 1.35;
+  --wit-type-meta-weight: 600;
+  --wit-type-meta-letter: 0.04em;
+}
+
+/* Base typographic reset & font-feature settings */
+*, *::before, *::after {
+  font-family: var(--wit-font-sans);
+}
+
+.wit-tnum,
+[data-tnum="true"] {
+  font-feature-settings: "tnum" 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.wit-type-display {
+  font-size: var(--wit-type-display-size);
+  line-height: var(--wit-type-display-line);
+  font-weight: var(--wit-type-display-weight);
+  letter-spacing: var(--wit-type-display-letter);
+  font-feature-settings: "tnum" 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.wit-type-hero {
+  font-size: var(--wit-type-hero-size);
+  line-height: var(--wit-type-hero-line);
+  font-weight: var(--wit-type-hero-weight);
+  letter-spacing: var(--wit-type-hero-letter);
+  font-feature-settings: "tnum" 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.wit-type-kpi {
+  font-size: var(--wit-type-kpi-size);
+  line-height: var(--wit-type-kpi-line);
+  font-weight: var(--wit-type-kpi-weight);
+  letter-spacing: var(--wit-type-kpi-letter);
+  font-feature-settings: "tnum" 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.wit-type-title {
+  font-size: var(--wit-type-title-size);
+  line-height: var(--wit-type-title-line);
+  font-weight: var(--wit-type-title-weight);
+  letter-spacing: var(--wit-type-title-letter);
+}
+
+.wit-type-headline {
+  font-size: var(--wit-type-headline-size);
+  line-height: var(--wit-type-headline-line);
+  font-weight: var(--wit-type-headline-weight);
+  letter-spacing: var(--wit-type-headline-letter);
+}
+
+.wit-type-body {
+  font-size: var(--wit-type-body-size);
+  line-height: var(--wit-type-body-line);
+  font-weight: var(--wit-type-body-weight);
+  letter-spacing: var(--wit-type-body-letter);
+}
+
+.wit-type-label {
+  font-size: var(--wit-type-label-size);
+  line-height: var(--wit-type-label-line);
+  font-weight: var(--wit-type-label-weight);
+  letter-spacing: var(--wit-type-label-letter);
+  text-transform: uppercase;
+}
+
+.wit-type-meta {
+  font-size: var(--wit-type-meta-size);
+  line-height: var(--wit-type-meta-line);
+  font-weight: var(--wit-type-meta-weight);
+  letter-spacing: var(--wit-type-meta-letter);
+  font-feature-settings: "tnum" 1;
+  font-variant-numeric: tabular-nums;
+}

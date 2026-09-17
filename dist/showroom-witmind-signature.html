@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Witmind Signature UI — Dark Architecture Edition</title>
+    <!-- Bundled Local Manrope Variable Font & Semantic Tokens -->
+    <style>
+      *, *::before, *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html, body {
+        width: 100%;
+        min-height: 100dvh;
+        background-color: #071118;
+        color: #f5f6f4;
+        font-family: "Manrope", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-feature-settings: "tnum" 1;
+        font-variant-numeric: tabular-nums;
+        overflow-x: hidden;
+      }
+
+      /* Dev Switcher Bar — ONLY active with ?dev=1 */
+      .version-top-bar {
+        display: none;
+        background: rgba(16, 25, 30, 0.95);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 8px 24px;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 12px;
+        position: sticky;
+        top: 0;
+        z-index: 99999;
+      }
+      body.dev-mode .version-top-bar {
+        display: flex;
+      }
+      .version-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .version-badge {
+        background: #f26522;
+        color: #ffffff;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 11px;
+        letter-spacing: 0.04em;
+      }
+      .version-links {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .version-links a {
+        color: rgba(255, 255, 255, 0.7);
+        text-decoration: none;
+        padding: 4px 12px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 600;
+        transition: all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .version-links a:hover,
+      .version-links a.current {
+        background: rgba(242, 101, 34, 0.16);
+        color: #f26522;
+        border-color: #f26522;
+        font-weight: 700;
+      }
+
+      showroom-witmind-signature {
+        display: block;
+        width: 100%;
+        min-height: 100dvh;
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/icon-B7B9oo7c.js"></script>
+    <script type="module" crossorigin src="/assets/showroom-witmind-signature-B1tESBVm.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/icon-DtLb3dRb.css">
+    <link rel="stylesheet" crossorigin href="/assets/typography-pG16ivVc.css">
+  </head>
+  <body>
+    <!-- Top Dev Bar (active with ?dev=1) -->
+    <div class="version-top-bar" id="devTopBar">
+      <div class="version-brand">
+        <span class="version-badge">WITMIND SIGNATURE</span>
+        <strong>Showroom Architectural UI (Dark)</strong>
+      </div>
+      <div class="version-links">
+        <a href="/showroom-witmind-signature.html?dev=1" class="current">🏛️ Signature Oscuro</a>
+        <a href="/showroom-witmind-signature-light.html?dev=1">☀️ Signature Claro</a>
+        <a href="/lab/index.html">🔬 Component Lab</a>
+      </div>
+    </div>
+
+    <!-- Web Component Showroom Witmind Signature -->
+    <showroom-witmind-signature id="signaturePanel"></showroom-witmind-signature>
+
+    <script>
+      (function() {
+        if (new URLSearchParams(window.location.search).has("dev")) {
+          document.body.classList.add("dev-mode");
+        }
+      })();
+    </script>
+  </body>
+</html>

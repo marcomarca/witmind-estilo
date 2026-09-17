@@ -1,0 +1,22 @@
+{
+  "name": "Witmind OS Golden Reference",
+  "reference": "witmind-os",
+  "status": "golden",
+  "version": "1.0.0",
+  "themes": [
+    "dark",
+    "light"
+  ],
+  "font": "Manrope",
+  "brandAccent": "#f26522",
+  "primaryViewport": "1366x768",
+  "secondaryViewport": "1440x900",
+  "entrypoints": {
+    "dark": "./dark.html",
+    "light": "./light.html"
+  },
+  "implementation": "./assets/witmind-os.js",
+  "mock": "./mock/mock-hass.js",
+  "css": "./assets/reference.css",
+  "fonts": "./assets/fonts/"
+}

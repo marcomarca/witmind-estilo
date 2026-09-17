@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Witmind Signature UI — Portal</title>
+    <link rel="stylesheet" href="/node_modules/@fontsource-variable/manrope/index.css" />
+    <link rel="stylesheet" href="/src/design-system/tokens/foundation.css" />
+    <link rel="stylesheet" href="/src/design-system/tokens/semantic-dark.css" />
+    <link rel="stylesheet" href="/src/design-system/tokens/typography.css" />
+    <style>
+      *, *::before, *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        min-height: 100vh;
+        background-color: #071118;
+        color: #f5f6f4;
+        font-family: "Manrope", system-ui, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
+      }
+      .portal-card {
+        max-width: 680px;
+        width: 100%;
+        background: #10191e;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 28px;
+        padding: 40px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+      .brand-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(242, 101, 34, 0.16);
+        color: #f26522;
+        border: 1px solid rgba(242, 101, 34, 0.35);
+        padding: 4px 12px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        width: fit-content;
+      }
+      .portal-title {
+        font-size: 32px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: #f5f6f4;
+      }
+      .portal-desc {
+        font-size: 14px;
+        color: #adb4b6;
+        line-height: 1.5;
+      }
+      .links-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      @media (max-width: 600px) {
+        .links-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .portal-link {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 20px;
+        background: #1b282e;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        text-decoration: none;
+        color: #f5f6f4;
+        transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .portal-link:hover {
+        border-color: #f26522;
+        background: rgba(242, 101, 34, 0.12);
+        transform: translateY(-2px);
+      }
+      .link-title {
+        font-size: 16px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .link-desc {
+        font-size: 12px;
+        color: #747e82;
+      }
+      .footer-note {
+        font-size: 11px;
+        color: #747e82;
+        text-align: center;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        padding-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="portal-card">
+      <div class="brand-badge">WITMIND ARCHITECTURAL PLATFORM</div>
+      <h1 class="portal-title">Witmind Signature UI</h1>
+      <p class="portal-desc">
+        Plataforma unificada de componentes, visualización y diseño arquitectónico para Home Assistant.
+        Construida con Lit Web Components, ECharts, Manrope Variable y tokens semánticos Dark/Light.
+      </p>
+
+      <div class="links-grid">
+        <a href="/showroom-witmind-signature.html" class="portal-link">
+          <div class="link-title">
+            <span>🏛️ Showroom Oscuro</span>
+            <span style="color: #f26522;">→</span>
+          </div>
+          <div class="link-desc">Edición Petroleum Dark para pantallas táctiles y paneles murales.</div>
+        </a>
+
+        <a href="/showroom-witmind-signature-light.html" class="portal-link">
+          <div class="link-title">
+            <span>☀️ Showroom Claro</span>
+            <span style="color: #f26522;">→</span>
+          </div>
+          <div class="link-desc">Edición Porcelain Light de alta legibilidad con el mismo bundle de componentes.</div>
+        </a>
+
+        <a href="/lab/index.html" class="portal-link" style="grid-column: 1 / -1;">
+          <div class="link-title">
+            <span>🔬 Component Laboratory</span>
+            <span style="color: #f26522;">→</span>
+          </div>
+          <div class="link-desc">Laboratorio interactivo de diseño: tipografía, tokens, estados interactivos y presets de ECharts.</div>
+        </a>
+      </div>
+
+      <div class="footer-note">
+        Witmind Signature UI • Home Assistant Custom Panel Platform • Crestron / Savant Architecture
+      </div>
+    </div>
+  </body>
+</html>

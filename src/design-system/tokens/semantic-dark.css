@@ -1,0 +1,75 @@
+/* ==========================================================================
+   WITMIND SIGNATURE UI — SEMANTIC DARK THEME (Deep Petroleum Architecture)
+   ========================================================================== */
+
+:root,
+:host([theme="dark"]),
+:host(:not([theme="light"])) {
+  /* Canvas & Depth Surfaces */
+  --wit-canvas: #071118;
+  --wit-surface: #10191e;
+  --wit-surface-raised: #162126;
+  --wit-surface-interactive: #1b282e;
+  --wit-surface-interactive-hover: #23333b;
+  --wit-surface-active: rgba(242, 101, 34, 0.16);
+  --wit-surface-glass: rgba(16, 25, 30, 0.85);
+  --wit-surface-overlay: rgba(7, 17, 24, 0.80);
+
+  /* Surface Gradient Overlays for Architectural Depth */
+  --wit-surface-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 100%);
+  --wit-surface-hero-gradient: linear-gradient(135deg, rgba(242, 101, 34, 0.08) 0%, rgba(16, 25, 30, 0.95) 60%);
+
+  /* Typography Colors */
+  --wit-text-primary: #f5f6f4;
+  --wit-text-secondary: #adb4b6;
+  --wit-text-tertiary: #747e82;
+  --wit-text-muted: rgba(245, 246, 244, 0.38);
+  --wit-text-accent: #f26522;
+  --wit-text-inverse: #071118;
+
+  /* Borders & Dividers */
+  --wit-border-subtle: rgba(255, 255, 255, 0.07);
+  --wit-border-medium: rgba(255, 255, 255, 0.12);
+  --wit-border-strong: rgba(255, 255, 255, 0.20);
+  --wit-border-accent: rgba(242, 101, 34, 0.45);
+  --wit-border-interactive: rgba(255, 255, 255, 0.09);
+
+  /* Brand Accent & Light Emissions (Witmind Orange as Emitted Light) */
+  --wit-accent: #f26522;
+  --wit-accent-rgb: 242, 101, 34;
+  --wit-accent-hover: #ff7a3d;
+  --wit-accent-active: #d95314;
+  --wit-accent-muted: rgba(242, 101, 34, 0.14);
+  --wit-accent-glow: rgba(242, 101, 34, 0.28);
+  --wit-accent-ring: rgba(242, 101, 34, 0.45);
+
+  /* Status Colors (Functional Semantics) */
+  --wit-success: #10b981;
+  --wit-success-muted: rgba(16, 185, 129, 0.14);
+  --wit-success-glow: rgba(16, 185, 129, 0.25);
+
+  --wit-warning: #f59e0b;
+  --wit-warning-muted: rgba(245, 158, 11, 0.14);
+  --wit-warning-glow: rgba(245, 158, 11, 0.25);
+
+  --wit-danger: #ef4444;
+  --wit-danger-muted: rgba(239, 68, 68, 0.14);
+  --wit-danger-glow: rgba(239, 68, 68, 0.25);
+
+  --wit-info: #0ea5e9;
+  --wit-info-muted: rgba(14, 165, 233, 0.14);
+
+  /* Multi-Layer Shadows & Elevational Depth */
+  --wit-shadow-card: 0 4px 20px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --wit-shadow-card-hover: 0 8px 32px rgba(0, 0, 0, 0.60), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  --wit-shadow-dock: 0 16px 48px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --wit-shadow-sheet: 0 28px 70px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  --wit-shadow-popover: 0 12px 36px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.10);
+
+  /* Visualization Specifics */
+  --wit-viz-track: rgba(255, 255, 255, 0.06);
+  --wit-viz-grid: rgba(255, 255, 255, 0.05);
+  --wit-viz-axis-label: #747e82;
+  --wit-viz-tooltip-bg: rgba(16, 25, 30, 0.96);
+  --wit-viz-tooltip-border: rgba(255, 255, 255, 0.12);
+}

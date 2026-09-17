@@ -1,0 +1,68 @@
+/* ==========================================================================
+   WITMIND SIGNATURE UI — FOUNDATION TOKENS
+   Raw design tokens and architectural constants
+   ========================================================================== */
+
+:root {
+  /* Brand Primary Emitted Light */
+  --wit-brand-orange-500: #f26522;
+  --wit-brand-orange-400: #ff7a3d;
+  --wit-brand-orange-600: #d95314;
+  --wit-brand-orange-rgb: 242, 101, 34;
+
+  /* Foundation Palette: Dark Petroleum */
+  --wit-raw-petrol-950: #071118;
+  --wit-raw-petrol-900: #10191e;
+  --wit-raw-petrol-850: #162126;
+  --wit-raw-petrol-800: #1b282e;
+  --wit-raw-petrol-700: #24353d;
+  --wit-raw-petrol-600: #334852;
+
+  /* Foundation Palette: Porcelain Light */
+  --wit-raw-porcelain-50: #ffffff;
+  --wit-raw-porcelain-100: #f3f3ef;
+  --wit-raw-porcelain-200: #e8e8e2;
+  --wit-raw-porcelain-300: #dadbd4;
+
+  /* Foundation Semantic Colors */
+  --wit-raw-emerald-500: #10b981;
+  --wit-raw-amber-500: #f59e0b;
+  --wit-raw-rose-500: #ef4444;
+  --wit-raw-sky-500: #0ea5e9;
+
+  /* Spacing Scale (4, 8, 12, 16, 24, 32, 40, 48) */
+  --wit-space-1: 4px;
+  --wit-space-2: 8px;
+  --wit-space-3: 12px;
+  --wit-space-4: 16px;
+  --wit-space-6: 24px;
+  --wit-space-8: 32px;
+  --wit-space-10: 40px;
+  --wit-space-12: 48px;
+
+  /* Radii Scale (Architectural defaults) */
+  --wit-radius-control: 14px;
+  --wit-radius-card: 22px;
+  --wit-radius-panel: 28px;
+  --wit-radius-pill: 999px;
+  --wit-radius-sm: 8px;
+  --wit-radius-xs: 6px;
+
+  /* Motion Timing & Easing */
+  --wit-duration-fast: 140ms;
+  --wit-duration-normal: 200ms;
+  --wit-duration-modal: 300ms;
+  --wit-ease-default: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --wit-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Touch Target Standard */
+  --wit-touch-min: 44px;
+  --wit-touch-target: 48px;
+
+  /* Icon Standard Dimensions */
+  --wit-icon-xs: 18px;
+  --wit-icon-sm: 22px;
+  --wit-icon-md: 28px;
+  --wit-icon-lg: 36px;
+  --wit-icon-stroke: 1.8px;
+}
