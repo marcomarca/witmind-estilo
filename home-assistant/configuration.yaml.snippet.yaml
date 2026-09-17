@@ -13,3 +13,67 @@ panel_custom:
       dev_url: http://192.168.20.44:5174/witmind-ui.html
       default_mode: stable
       fallback_release: 0.1.0
+
+  - name: witmind-lobby-panel
+    url_path: witmind-lobby
+    sidebar_title: Witmind Lobby
+    sidebar_icon: mdi:door-open
+    module_url: /local/witmind-ui-panel.js?v=0.1.1
+    require_admin: false
+    config:
+      panel_kind: lobby
+      app_base: /local/witmind-ui
+      dev_url: http://192.168.20.44:5174/witmind-ui.html
+      default_mode: stable
+      fallback_release: 0.1.2
+      title: Lobby
+      subtitle: Control operativo
+      site_label: WTX · MDTC
+      weather: weather.forecast_casa
+      light_count_sensor: sensor.lobby_luminarias_encendidas
+      energy_sensor: sensor.showroom_energia_estimada
+      history_hours: 4
+      chart_hours: 24
+      show_forecast: true
+      devices:
+        - entity: switch.interruptor_inteligente_3_switch_1
+          name: Central Colgante
+          subtitle: Iluminación central
+          icon: pendant
+        - entity: switch.interruptor_inteligente_3_switch_2
+          name: Spots 5W Decorativos
+          subtitle: Iluminación decorativa
+          icon: spot
+        - entity: switch.interruptor_inteligente_3_switch_3
+          name: Tira LED
+          subtitle: Iluminación ambiental
+          icon: strip
+        - entity: switch.interruptor_inteligente_3_switch_4
+          name: Spots 10W
+          subtitle: Iluminación principal
+          icon: spot
+      scene_control_entities:
+        - switch.interruptor_inteligente_3_switch_1
+        - switch.interruptor_inteligente_3_switch_2
+        - switch.interruptor_inteligente_3_switch_3
+        - switch.interruptor_inteligente_3_switch_4
+      scenes:
+        - id: visita
+          name: Visita
+          subtitle: Todos los circuitos
+          icon: presentation
+          on_entities:
+            - switch.interruptor_inteligente_3_switch_1
+            - switch.interruptor_inteligente_3_switch_2
+            - switch.interruptor_inteligente_3_switch_3
+            - switch.interruptor_inteligente_3_switch_4
+        - id: regular
+          name: Regular
+          subtitle: Solo Spots 10W
+          icon: bulb
+          on_entities:
+            - switch.interruptor_inteligente_3_switch_4
+          off_entities:
+            - switch.interruptor_inteligente_3_switch_1
+            - switch.interruptor_inteligente_3_switch_2
+            - switch.interruptor_inteligente_3_switch_3

@@ -1427,10 +1427,6 @@ class ShowroomPanel extends HTMLElement {
 
     const config = this._config();
     const scriptEntity = desired === "on" ? config.powerOnScript : config.powerOffScript;
-    if (!scriptEntity) {
-      this._notify("El control general no está configurado.", "error");
-      return false;
-    }
 
     const expectations = config.sceneControlEntities.map((entityId) => ({
       entityId,
@@ -1443,20 +1439,22 @@ class ShowroomPanel extends HTMLElement {
         ? "No se pudo encender toda la iluminación."
         : "No se pudo apagar toda la iluminación.");
 
-    this._pendingAction = scriptEntity;
+    this._pendingAction = scriptEntity || `direct-power-${desired}`;
     this._markExpectedStates(expectations);
     this._requestRender();
 
     let scriptError = null;
 
     try {
-      try {
-        await this._hass.callService("script", "turn_on", {
-          entity_id: scriptEntity,
-        });
-      } catch (error) {
-        scriptError = error;
-        console.warn(`El script ${scriptEntity} no respondió; se aplicará el control directo.`, error);
+      if (scriptEntity) {
+        try {
+          await this._hass.callService("script", "turn_on", {
+            entity_id: scriptEntity,
+          });
+        } catch (error) {
+          scriptError = error;
+          console.warn(`El script ${scriptEntity} no respondió; se aplicará el control directo.`, error);
+        }
       }
 
       await this._setEntitiesState(config.sceneControlEntities, desired);

@@ -32,6 +32,7 @@
       this._mode = "STABLE";
       this._entityIds = new Set();
       this._lastSentStates = new Map();
+      this._subscriptions = new Map();
       this._messageHandler = (event) => this._onMessage(event);
       this._render();
     }
@@ -69,6 +70,8 @@
     }
     disconnectedCallback() {
       window.removeEventListener("message", this._messageHandler);
+      for (const unsubscribe of this._subscriptions.values()) if (typeof unsubscribe === "function") unsubscribe();
+      this._subscriptions.clear();
       if (this._iframe) this._iframe.src = "about:blank";
     }
 
@@ -222,6 +225,16 @@
         await this._handleHaCommand(message);
         return;
       }
+      if (message.type === "WITMIND_HA_SUBSCRIBE") {
+        await this._handleHaSubscribe(message);
+        return;
+      }
+      if (message.type === "WITMIND_HA_UNSUBSCRIBE") {
+        const unsubscribe = this._subscriptions.get(message.requestId);
+        if (unsubscribe) unsubscribe();
+        this._subscriptions.delete(message.requestId);
+        return;
+      }
       if (message.type === "WITMIND_TOGGLE_MENU") this.dispatchEvent(new CustomEvent("hass-toggle-menu", { bubbles: true, composed: true }));
       if (message.type === "WITMIND_SET_CONNECTION_MODE") this._mode = String(message.mode || this._mode).toUpperCase();
       if (message.type === "WITMIND_THEME_CHANGED") this._post({ type: "WITMIND_THEME", theme: message.theme || null });
@@ -244,12 +257,28 @@
       try {
         if (!this._hass?.connection?.sendMessagePromise) throw new Error("Conexión HA no disponible");
         const type = String(message.command || "");
-        const allowed = ["weather/subscribe_forecast", "recorder/get_statistics_metadata", "recorder/statistics_during_period"];
+        const allowed = ["recorder/get_statistics_metadata", "recorder/statistics_during_period"];
         if (!allowed.includes(type)) throw new Error("Comando HA no permitido");
         const result = await this._hass.connection.sendMessagePromise({ type, ...(message.payload || {}) });
         this._post({ type: "WITMIND_HA_RESULT", requestId, ok: true, result });
       } catch (error) {
         this._post({ type: "WITMIND_HA_RESULT", requestId, ok: false, error: String(error?.message || error) });
+      }
+    }
+    async _handleHaSubscribe(message) {
+      const requestId = message.requestId;
+      try {
+        if (!this._hass?.connection?.subscribeMessage) throw new Error("Suscripciones HA no disponibles");
+        const type = String(message.command || "");
+        if (type !== "weather/subscribe_forecast") throw new Error("Suscripción HA no permitida");
+        const unsubscribe = await this._hass.connection.subscribeMessage(
+          (event) => this._post({ type: "WITMIND_HA_EVENT", requestId, result: event }),
+          { type, ...(message.payload || {}) },
+        );
+        this._subscriptions.set(requestId, unsubscribe);
+        this._post({ type: "WITMIND_HA_SUBSCRIBED", requestId, ok: true });
+      } catch (error) {
+        this._post({ type: "WITMIND_HA_SUBSCRIBED", requestId, ok: false, error: String(error?.message || error) });
       }
     }
   }

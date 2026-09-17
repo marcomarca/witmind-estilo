@@ -44,6 +44,7 @@ class WitmindApp extends HTMLElement {
     if (event.source !== window.parent || event.data?.protocol !== 1 || event.data?.source !== "witmind-ha") return;
     if (event.data.type === "WITMIND_INIT" && event.data.panelConfig) {
       this.panelConfig = event.data.panelConfig as Record<string, unknown>;
+      this.applyPanelConfig();
       this.resubscribeWithConfig();
     }
     const theme = event.data.theme;
@@ -56,6 +57,7 @@ class WitmindApp extends HTMLElement {
     this.shadowRoot!.innerHTML = `<style>:host{display:block;min-height:100dvh;background:var(--wit-surface,#071118)} showroom-panel{display:block;min-height:100dvh}</style><showroom-panel></showroom-panel>`;
     this.panel = this.shadowRoot!.querySelector("showroom-panel") as PanelElement;
     this.client = new PostMessageHaClient(window.parent);
+    this.applyPanelConfig();
     this.subscribe(ENTITY_IDS);
     this.panel.hass = this.createHassAdapter();
   }
@@ -73,6 +75,40 @@ class WitmindApp extends HTMLElement {
   private resubscribeWithConfig() {
     const entityIds = [...new Set([...ENTITY_IDS, ...collectEntityIds(this.panelConfig)])];
     this.subscribe(entityIds);
+  }
+
+  private applyPanelConfig() {
+    if (!this.panel || this.panelConfig.panel_kind !== "lobby") return;
+    const raw = this.panelConfig;
+    const devices = Array.isArray(raw.devices) ? raw.devices : [];
+    const scenes = Array.isArray(raw.scenes) ? raw.scenes : [];
+    this.panel.panel = {
+      config: {
+        title: raw.title || "Lobby",
+        subtitle: raw.subtitle || "Control operativo",
+        site_label: raw.site_label || raw.siteLabel || "WTX · MDTC",
+        logo: raw.logo || "/local/logo-witmind.png?v=2.0.0",
+        weather: raw.weather || "weather.forecast_casa",
+        light_count_sensor: raw.light_count_sensor || "sensor.lobby_luminarias_encendidas",
+        energy_sensor: raw.energy_sensor || "sensor.showroom_energia_estimada",
+        history_hours: raw.history_hours || 4,
+        chart_hours: raw.chart_hours || 24,
+        show_forecast: raw.show_forecast ?? true,
+        spots: devices,
+        samples: [],
+        reflector: { entity: "" },
+        scene_control_entities: raw.scene_control_entities || raw.sceneControlEntities || devices.map((item: any) => item.entity),
+        scenes: scenes.map((scene: any) => ({
+          ...scene,
+          onEntities: scene.on_entities || scene.onEntities || [],
+          offEntities: scene.off_entities || scene.offEntities || [],
+          directOnly: true,
+        })),
+        sample_scenes: [],
+        power_on_script: "",
+        power_off_script: "",
+      },
+    };
   }
 
   disconnectedCallback() {
@@ -104,15 +140,8 @@ class WitmindApp extends HTMLElement {
         },
         sendMessagePromise: (message: Record<string, unknown>) =>
           client.haRequest(String(message.type || ""), message),
-        subscribeMessage: async (callback: (event: unknown) => void, message: Record<string, unknown>) => {
-          try {
-            const result = await client.haRequest(String(message.type || ""), message);
-            callback(result);
-          } catch (_) {
-            callback({ forecast: [] });
-          }
-          return () => undefined;
-        },
+        subscribeMessage: (callback: (event: unknown) => void, message: Record<string, unknown>) =>
+          client.haSubscribe(String(message.type || ""), message, callback),
       },
     };
   }
