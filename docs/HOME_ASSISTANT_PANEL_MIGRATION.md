@@ -348,7 +348,11 @@ node --check src/showroom-panel.js
 
 El bridge remoto es antiguo o está cacheado. Verificar `module_url`, subir su versión `?v=...`, reiniciar HA si cambió YAML y hacer recarga fuerte.
 
-Desde el bridge `?v=0.1.4`, una pantalla blanca deja un diagnóstico visible después de ocho segundos y registra mensajes con el prefijo `[Witmind UI]` en la consola del navegador. Los estados posibles permiten separar rápidamente:
+Desde el bridge `?v=0.1.5`, una pantalla blanca deja un diagnóstico visible después de ocho segundos y registra mensajes con el prefijo `[Witmind UI]` en la consola del navegador. El bridge también registra los alias `witmind-ui-panel` y `witmind-lobby-panel`; el segundo es obligatorio cuando la entrada `panel_custom` usa `name: witmind-lobby-panel`.
+
+Si aparece la entrada en el sidebar pero el contenido queda completamente vacío, comprobar primero que el `name` de `panel_custom` tenga un custom element definido por el módulo. Un nombre sin alias registrado produce un panel blanco sin feedback.
+
+Los estados posibles permiten separar rápidamente:
 
 - `No se pudo leer current.json`: la ruta `app_base` no responde o la release activa no es válida.
 - `Error cargando iframe`: Home Assistant no pudo abrir el HTML de la release.

@@ -6,7 +6,7 @@ panel_custom:
     sidebar_title: Witmind Next
     sidebar_icon: mdi:view-dashboard-variant
     url_path: witmind-next
-    module_url: /local/witmind-ui-panel.js?v=0.1.4
+    module_url: /local/witmind-ui-panel.js?v=0.1.5
     require_admin: false
     config:
       app_base: /local/witmind-ui
@@ -18,7 +18,7 @@ panel_custom:
     url_path: witmind-lobby
     sidebar_title: Witmind Lobby
     sidebar_icon: mdi:door-open
-    module_url: /local/witmind-ui-panel.js?v=0.1.4
+    module_url: /local/witmind-ui-panel.js?v=0.1.5
     require_admin: false
     config:
       panel_kind: lobby

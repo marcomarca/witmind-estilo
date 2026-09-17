@@ -80,7 +80,14 @@
     }
 
     _config() {
-      return { ...DEFAULT_CONFIG, ...(this._panel?.config || this._panel || {}) };
+      const panel = this._panel || {};
+      const first = panel.config && typeof panel.config === "object" ? panel.config : panel;
+      const config = first.config && typeof first.config === "object" ? first.config : first;
+      const merged = { ...DEFAULT_CONFIG, ...config };
+      // El tag propio del panel es la fuente de verdad si HA no conserva
+      // `panel_kind` dentro de la configuración serializada.
+      if (this.localName === "witmind-lobby-panel") merged.panel_kind = "lobby";
+      return merged;
     }
     _storage(key) {
       try { return window.localStorage.getItem(key) || ""; } catch (_) { return ""; }
@@ -315,5 +322,13 @@
     }
   }
 
-  customElements.define("witmind-ui-panel", WitmindUiPanel);
+  // Home Assistant usa el valor `name` de cada entrada panel_custom como tag
+  // del elemento. El Lobby conserva su nombre propio, pero comparte el mismo
+  // bridge y la misma UI aislada que Witmind Next.
+  if (!customElements.get("witmind-ui-panel")) {
+    customElements.define("witmind-ui-panel", WitmindUiPanel);
+  }
+  if (!customElements.get("witmind-lobby-panel")) {
+    customElements.define("witmind-lobby-panel", WitmindUiPanel);
+  }
 })();
