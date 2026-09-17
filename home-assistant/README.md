@@ -2,6 +2,8 @@
 
 Esta carpeta es el árbol de despliegue para `/config` en Home Assistant OS. No crea una segunda base de datos en el PC: el único SQLite se crea en `/config/witmind/witmind.db` por `witmind_core`.
 
+La guía completa para colaborar y migrar paneles antiguos está en [`docs/HOME_ASSISTANT_PANEL_MIGRATION.md`](../docs/HOME_ASSISTANT_PANEL_MIGRATION.md).
+
 1. Copia `custom_components/witmind_core` a `/config/custom_components/witmind_core`.
 2. Copia `www/witmind-ui-panel.js` a `/config/www/witmind-ui-panel.js`.
 3. Copia `www/witmind-ui/current.json` y las releases generadas a `/config/www/witmind-ui/`.
