@@ -85,10 +85,8 @@ export class ShowroomWitmindSignature extends LitElement {
   private _unsubEvents?: () => void;
 
   static styles = css`
-    /* Tipografía local Manrope servida mediante reference.css / assets/fonts/ */
-
     :host {
-      /* Brand Accent Tokens */
+      /* Brand Accent Tokens (Emitted Light) */
       --accent: #f26522;
       --accent-hover: #dc581a;
       --accent-soft: rgba(242, 101, 34, 0.12);
@@ -103,32 +101,38 @@ export class ShowroomWitmindSignature extends LitElement {
       /* Typography Scale (Manrope) */
       --font-ui: "Manrope", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
-      /* Spacing Grid (4/8px) */
+      /* Spacing Scale (4, 8, 12, 16, 24, 32, 40, 48) */
       --s1: 4px;
       --s2: 8px;
       --s3: 12px;
       --s4: 16px;
       --s5: 24px;
       --s6: 32px;
+      --s8: 40px;
+      --s10: 48px;
 
-      /* Radii */
+      /* Radii (Architectural Invariants) */
       --r-control: 14px;
       --r-card: 22px;
       --r-panel: 28px;
       --r-pill: 999px;
 
       /* Motion */
-      --motion-fast: 150ms;
-      --motion-normal: 220ms;
+      --motion-fast: 140ms;
+      --motion-normal: 200ms;
       --motion-slow: 300ms;
       --ease-apple: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+      /* Touch Target Standard */
+      --touch-min: 44px;
+      --touch-target: 48px;
 
       /* DARK THEME (Default) — 3-Layer Surfaces */
       --canvas: #071118;
       --surface: rgba(16, 25, 30, 0.88);
       --surface-raised: #162126;
       --surface-interactive: #1b282e;
-      --glass: rgba(20, 30, 35, 0.68);
+      --glass: rgba(20, 30, 35, 0.72);
       --text-1: #f5f6f4;
       --text-2: #adb4b6;
       --text-3: #747e82;
@@ -141,12 +145,14 @@ export class ShowroomWitmindSignature extends LitElement {
       user-select: none;
       -webkit-user-select: none;
       overflow-x: hidden;
+      container-type: inline-size;
+      container-name: showroom-container;
 
       font-family: var(--font-ui);
       font-feature-settings: "tnum" 1;
       color: var(--text-1);
 
-      /* Atmospheric subtle background (never illustration) */
+      /* Atmospheric subtle background */
       background:
         radial-gradient(900px 600px at 85% 15%, rgba(242, 101, 34, 0.14), transparent 65%),
         radial-gradient(700px 500px at 15% 85%, rgba(242, 101, 34, 0.06), transparent 70%),
@@ -160,7 +166,7 @@ export class ShowroomWitmindSignature extends LitElement {
       --surface: rgba(255, 255, 255, 0.88);
       --surface-raised: #ffffff;
       --surface-interactive: #f8fafc;
-      --glass: rgba(255, 255, 255, 0.75);
+      --glass: rgba(255, 255, 255, 0.82);
       --text-1: #182126;
       --text-2: #667176;
       --text-3: #92999c;
@@ -177,6 +183,13 @@ export class ShowroomWitmindSignature extends LitElement {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Numeral Tabular Font Standard */
+    .tnum, [data-tnum="true"], .clock-digits, .kpi-display, .gauge-value, .cell-val {
+      font-feature-settings: "tnum" 1;
+      font-variant-numeric: tabular-nums;
     }
 
     /* Main Workspace Frame */
@@ -191,9 +204,10 @@ export class ShowroomWitmindSignature extends LitElement {
       padding:
         max(var(--s5), env(safe-area-inset-top))
         max(var(--s6), env(safe-area-inset-right))
-        max(96px, env(safe-area-inset-bottom))
+        max(104px, calc(env(safe-area-inset-bottom) + 84px))
         max(var(--s6), env(safe-area-inset-left));
       gap: var(--s5);
+      transition: padding var(--motion-normal) var(--ease-apple), gap var(--motion-normal) var(--ease-apple);
     }
 
     /* CARD SYSTEM (Level 1 Surface) */
@@ -205,20 +219,22 @@ export class ShowroomWitmindSignature extends LitElement {
       padding: var(--s5);
       display: flex;
       flex-direction: column;
-      transition: transform var(--motion-fast) var(--ease-apple), border-color var(--motion-fast) var(--ease-apple), box-shadow var(--motion-fast) var(--ease-apple);
+      transition: transform var(--motion-fast) var(--ease-apple),
+                  border-color var(--motion-fast) var(--ease-apple),
+                  box-shadow var(--motion-fast) var(--ease-apple);
       overflow: hidden;
     }
     .card.interactive {
       cursor: pointer;
     }
     .card.interactive:hover {
-      border-color: rgba(255, 255, 255, 0.16);
+      border-color: rgba(255, 255, 255, 0.18);
       transform: translateY(-1px);
     }
     :host([theme="light"]) .card.interactive:hover {
       border-color: rgba(18, 32, 38, 0.16);
     }
-    .interactive:active {
+    .card.interactive:active {
       transform: scale(0.985);
     }
 
@@ -254,17 +270,21 @@ export class ShowroomWitmindSignature extends LitElement {
       align-items: center;
       padding: var(--s1) 0;
       gap: var(--s4);
+      min-height: 56px;
     }
 
     .header-brand-wrap {
       display: flex;
       align-items: center;
       gap: var(--s5);
+      min-width: 0;
+      flex: 1 1 auto;
     }
     .brand-block {
       display: flex;
       flex-direction: column;
       line-height: 1.1;
+      flex-shrink: 0;
     }
     .brand-name {
       font-size: 18px;
@@ -284,7 +304,14 @@ export class ShowroomWitmindSignature extends LitElement {
       display: flex;
       align-items: center;
       gap: var(--s2);
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      padding: 2px 2px 4px 2px;
+    }
+    .pills-strip::-webkit-scrollbar {
+      display: none;
     }
     .status-pill {
       min-height: 48px;
@@ -298,11 +325,17 @@ export class ShowroomWitmindSignature extends LitElement {
       align-items: center;
       gap: var(--s2);
       cursor: pointer;
-      transition: all var(--motion-fast);
+      flex-shrink: 0;
+      transition: transform var(--motion-fast) var(--ease-apple),
+                  border-color var(--motion-fast) var(--ease-apple),
+                  background var(--motion-fast) var(--ease-apple);
     }
     .status-pill:hover {
       border-color: var(--accent-border);
       transform: translateY(-1px);
+    }
+    .status-pill:active {
+      transform: scale(0.97);
     }
     .status-pill.is-active-pill {
       border-color: var(--accent-border);
@@ -324,6 +357,7 @@ export class ShowroomWitmindSignature extends LitElement {
       display: flex;
       flex-direction: column;
       line-height: 1.2;
+      white-space: nowrap;
     }
     .pill-title {
       font-size: var(--s3);
@@ -342,13 +376,13 @@ export class ShowroomWitmindSignature extends LitElement {
       align-items: flex-end;
       text-align: right;
       line-height: 1;
+      flex-shrink: 0;
     }
     .clock-digits {
-      font-size: clamp(48px, 5vw, 60px);
+      font-size: clamp(38px, 4vw, 56px);
       font-weight: 450;
       letter-spacing: -0.04em;
       color: var(--text-1);
-      font-variant-numeric: tabular-nums;
     }
     .clock-date-row {
       display: flex;
@@ -360,12 +394,14 @@ export class ShowroomWitmindSignature extends LitElement {
       font-size: var(--s3);
       font-weight: 520;
       color: var(--text-2);
+      white-space: nowrap;
     }
     .theme-toggle-btn {
       display: inline-flex;
       align-items: center;
       gap: var(--s1);
-      padding: 3px 10px;
+      min-height: 32px;
+      padding: 4px 12px;
       border-radius: var(--r-pill);
       background: var(--surface-interactive);
       border: 1px solid var(--line);
@@ -374,10 +410,14 @@ export class ShowroomWitmindSignature extends LitElement {
       font-weight: 640;
       cursor: pointer;
       transition: all var(--motion-fast);
+      font-family: inherit;
     }
     .theme-toggle-btn:hover {
       color: var(--text-1);
       border-color: var(--accent-border);
+    }
+    .theme-toggle-btn:active {
+      transform: scale(0.96);
     }
 
     /* HORIZONTAL CAROUSEL (CSS Scroll Snap) */
@@ -427,6 +467,7 @@ export class ShowroomWitmindSignature extends LitElement {
       font-weight: 720;
       letter-spacing: -0.02em;
       color: var(--text-1);
+      line-height: 1.15;
     }
     .hero-caption {
       font-size: var(--s4);
@@ -439,12 +480,17 @@ export class ShowroomWitmindSignature extends LitElement {
       padding: var(--s1);
       border-radius: var(--r-pill);
       border: 1px solid var(--line);
+      flex-shrink: 0;
     }
     .nav-segment-btn {
       background: transparent;
       border: none;
       color: var(--text-2);
-      padding: var(--s2) var(--s4);
+      min-height: 44px;
+      padding: 0 var(--s4);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       border-radius: var(--r-pill);
       font-size: var(--s3);
       font-weight: 640;
@@ -453,34 +499,23 @@ export class ShowroomWitmindSignature extends LitElement {
       font-family: inherit;
     }
     .nav-segment-btn:hover { color: var(--text-1); }
+    .nav-segment-btn:active { transform: scale(0.97); }
     .nav-segment-btn.is-selected {
       background: var(--accent);
       color: #ffffff;
     }
 
-    /* GRIDS */
+    /* GRIDS SYSTEM (Page 1) */
     .grid-top-quad {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: var(--s5);
     }
-    @media (max-width: 1180px) {
-      .grid-top-quad { grid-template-columns: repeat(2, 1fr); }
-    }
-    @media (max-width: 650px) {
-      .grid-top-quad { grid-template-columns: 1fr; }
-    }
 
     .grid-mid-trio {
       display: grid;
-      grid-template-columns: 1.1fr 1.3fr 1.3fr;
+      grid-template-columns: 1.1fr 1.3fr 1.2fr;
       gap: var(--s5);
-    }
-    @media (max-width: 1100px) {
-      .grid-mid-trio { grid-template-columns: 1fr 1fr; }
-    }
-    @media (max-width: 720px) {
-      .grid-mid-trio { grid-template-columns: 1fr; }
     }
 
     /* WEATHER WIDGET */
@@ -494,7 +529,6 @@ export class ShowroomWitmindSignature extends LitElement {
       font-weight: 520;
       letter-spacing: -0.03em;
       color: var(--text-1);
-      font-variant-numeric: tabular-nums;
     }
     .kpi-sub-label {
       font-size: var(--s3);
@@ -580,7 +614,6 @@ export class ShowroomWitmindSignature extends LitElement {
       font-size: 16px;
       font-weight: 720;
       color: var(--text-1);
-      font-variant-numeric: tabular-nums;
     }
     .gauge-sub {
       font-size: 10px;
@@ -636,6 +669,7 @@ export class ShowroomWitmindSignature extends LitElement {
       gap: 6px;
     }
     .room-row {
+      min-height: 48px;
       padding: 8px 12px;
       background: var(--surface-interactive);
       border: 1px solid var(--line);
@@ -701,6 +735,9 @@ export class ShowroomWitmindSignature extends LitElement {
       border-color: var(--accent-border);
       transform: translateY(-1px);
     }
+    .sc-item:active {
+      transform: scale(0.97);
+    }
     .sc-item.is-highlight {
       background: var(--accent-soft);
       border-color: var(--accent-border);
@@ -708,20 +745,28 @@ export class ShowroomWitmindSignature extends LitElement {
     .sc-ico {
       display: flex;
       color: var(--text-2);
+      flex-shrink: 0;
     }
     .sc-text-col {
       display: flex;
       flex-direction: column;
       line-height: 1.2;
+      min-width: 0;
     }
     .sc-heading {
       font-size: var(--s3);
       font-weight: 640;
       color: var(--text-1);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .sc-sub-text {
       font-size: 11px;
       color: var(--text-3);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     /* CALENDAR WIDGET */
@@ -746,6 +791,7 @@ export class ShowroomWitmindSignature extends LitElement {
       display: flex;
       align-items: center;
       gap: var(--s2);
+      min-height: 38px;
       padding: 6px 10px;
       background: var(--surface-interactive);
       border-radius: 8px;
@@ -755,6 +801,7 @@ export class ShowroomWitmindSignature extends LitElement {
     .event-hour {
       font-weight: 720;
       color: var(--accent);
+      flex-shrink: 0;
     }
     .event-title {
       color: var(--text-1);
@@ -763,14 +810,11 @@ export class ShowroomWitmindSignature extends LitElement {
       text-overflow: ellipsis;
     }
 
-    /* PAGE 2 WIDGETS */
+    /* PAGE 2 GRIDS & WIDGETS */
     .grid-page2-pair {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: var(--s5);
-    }
-    @media (max-width: 900px) {
-      .grid-page2-pair { grid-template-columns: 1fr; }
     }
 
     /* MEDIA EXPANDED */
@@ -812,6 +856,9 @@ export class ShowroomWitmindSignature extends LitElement {
     .media-subhead {
       font-size: var(--s3);
       color: var(--text-2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .media-ctrl-row {
       display: flex;
@@ -826,8 +873,8 @@ export class ShowroomWitmindSignature extends LitElement {
       gap: var(--s3);
     }
     .transport-btn {
-      width: 44px;
-      height: 44px;
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       background: var(--surface-interactive);
       border: 1px solid var(--line);
@@ -839,6 +886,7 @@ export class ShowroomWitmindSignature extends LitElement {
       transition: all var(--motion-fast);
     }
     .transport-btn:hover { border-color: var(--accent-border); }
+    .transport-btn:active { transform: scale(0.95); }
     .transport-btn.is-play-action {
       background: var(--accent);
       color: #ffffff;
@@ -846,11 +894,11 @@ export class ShowroomWitmindSignature extends LitElement {
     }
     .media-vol-group {
       display: flex;
-      gap: 6px;
+      gap: 8px;
     }
     .vol-btn {
-      width: 36px;
-      height: 36px;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
       background: var(--surface-interactive);
       border: 1px solid var(--line);
@@ -859,9 +907,11 @@ export class ShowroomWitmindSignature extends LitElement {
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 16px;
+      font-size: 18px;
       font-weight: 640;
     }
+    .vol-btn:hover { border-color: var(--accent-border); }
+    .vol-btn:active { transform: scale(0.95); }
 
     /* LIGHTS SUMMARY */
     .lights-card {
@@ -874,6 +924,7 @@ export class ShowroomWitmindSignature extends LitElement {
       gap: var(--s2);
       padding-top: var(--s2);
       border-top: 1px solid var(--line);
+      flex-wrap: wrap;
     }
     .chip-label {
       padding: 4px 10px;
@@ -894,7 +945,8 @@ export class ShowroomWitmindSignature extends LitElement {
       background: var(--surface-interactive);
       border: 1px solid var(--line);
       border-radius: var(--r-control);
-      padding: var(--s4);
+      min-height: 52px;
+      padding: var(--s3) var(--s4);
       display: flex;
       align-items: center;
       gap: var(--s2);
@@ -905,11 +957,12 @@ export class ShowroomWitmindSignature extends LitElement {
       transition: all var(--motion-fast);
     }
     .scene-box:hover { border-color: var(--accent-border); }
+    .scene-box:active { transform: scale(0.97); }
     .scene-box.is-accent {
       border-color: var(--accent-border);
       background: var(--accent-soft);
     }
-    .scene-ico { display: flex; }
+    .scene-ico { display: flex; flex-shrink: 0; }
 
     /* RECENT ACTIVITY */
     .activity-card { gap: var(--s2); }
@@ -922,6 +975,7 @@ export class ShowroomWitmindSignature extends LitElement {
       display: flex;
       align-items: center;
       gap: var(--s2);
+      min-height: 36px;
       padding: 6px 10px;
       background: var(--surface-interactive);
       border-radius: 8px;
@@ -932,13 +986,21 @@ export class ShowroomWitmindSignature extends LitElement {
       height: 6px;
       border-radius: 50%;
       background: var(--accent);
+      flex-shrink: 0;
     }
     .entry-texts {
       display: flex;
       flex-direction: column;
       line-height: 1.2;
+      min-width: 0;
     }
-    .entry-msg { font-weight: 640; color: var(--text-1); }
+    .entry-msg {
+      font-weight: 640;
+      color: var(--text-1);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .entry-time { font-size: 10px; color: var(--text-3); }
 
     /* DIAGNOSTICS */
@@ -952,10 +1014,11 @@ export class ShowroomWitmindSignature extends LitElement {
       background: var(--surface-interactive);
       border: 1px solid var(--line);
       border-radius: var(--r-control);
-      padding: 8px 12px;
+      padding: 10px 12px;
       display: flex;
       flex-direction: column;
       gap: 2px;
+      min-height: 52px;
     }
     .cell-label { font-size: 11px; color: var(--text-3); font-weight: 640; }
     .cell-val { font-size: var(--s3); font-weight: 720; color: var(--state-success); }
@@ -971,49 +1034,17 @@ export class ShowroomWitmindSignature extends LitElement {
     .system-row {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       font-size: var(--s3);
-      padding: 6px 0;
+      padding: 8px 0;
       border-bottom: 1px solid var(--line);
     }
     .system-row strong { color: var(--text-1); }
 
-    /* DETAILED ENERGY CHART */
-    .energy-chart-track {
-      display: flex;
-      align-items: flex-end;
-      gap: 4px;
-      height: 140px;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--line);
-    }
-    .chart-col {
-      flex: 1;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-      align-items: center;
-      gap: 6px;
-    }
-    .chart-col-fill {
-      width: 100%;
-      border-radius: 2px 2px 0 0;
-      background: var(--accent);
-      opacity: 0.85;
-      transition: height var(--motion-slow) var(--ease-apple);
-    }
-    .chart-col-fill.is-peak {
-      background: var(--text-1);
-    }
-    .chart-col-label {
-      font-size: 9px;
-      color: var(--text-3);
-    }
-
-    /* BOTTOM DOCK (Level 2 Surface) */
+    /* BOTTOM DOCK (Floating Architectural Pill) */
     .wit-dock {
       position: fixed;
-      bottom: var(--s4);
+      bottom: max(16px, env(safe-area-inset-bottom));
       left: 50%;
       transform: translateX(-50%);
       background: var(--glass);
@@ -1021,21 +1052,23 @@ export class ShowroomWitmindSignature extends LitElement {
       border-radius: var(--r-pill);
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
-      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
       padding: 6px var(--s3);
       display: flex;
       align-items: center;
       gap: var(--s2);
       z-index: 2000;
+      max-width: calc(100vw - 32px);
     }
     :host([theme="light"]) .wit-dock {
-      box-shadow: 0 16px 40px rgba(18, 32, 38, 0.12);
+      box-shadow: 0 16px 40px rgba(18, 32, 38, 0.14);
     }
     .dock-btn {
       display: inline-flex;
       align-items: center;
       gap: var(--s2);
-      padding: var(--s2) var(--s4);
+      min-height: 44px;
+      padding: 0 var(--s4);
       border-radius: var(--r-pill);
       font-size: var(--s3);
       font-weight: 640;
@@ -1045,10 +1078,14 @@ export class ShowroomWitmindSignature extends LitElement {
       cursor: pointer;
       transition: all var(--motion-fast);
       font-family: inherit;
+      white-space: nowrap;
     }
     .dock-btn:hover {
       color: var(--text-1);
       background: var(--line);
+    }
+    .dock-btn:active {
+      transform: scale(0.96);
     }
     .dock-dots-group {
       display: flex;
@@ -1070,7 +1107,7 @@ export class ShowroomWitmindSignature extends LitElement {
       background: var(--accent);
     }
 
-    /* MODAL SHEETS (Level 2 Surface) */
+    /* MODAL SHEETS & BOTTOM SHEETS */
     .sheet-scrim {
       position: fixed;
       inset: 0;
@@ -1107,7 +1144,7 @@ export class ShowroomWitmindSignature extends LitElement {
       animation: scaleUp var(--motion-normal) var(--ease-apple);
     }
     @keyframes scaleUp {
-      from { transform: scale(0.95); opacity: 0; }
+      from { transform: scale(0.96); opacity: 0; }
       to { transform: scale(1); opacity: 1; }
     }
 
@@ -1126,8 +1163,8 @@ export class ShowroomWitmindSignature extends LitElement {
       color: var(--text-2);
     }
     .sheet-close-btn {
-      width: 36px;
-      height: 36px;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
       background: var(--surface-interactive);
       border: 1px solid var(--line);
@@ -1141,6 +1178,9 @@ export class ShowroomWitmindSignature extends LitElement {
     .sheet-close-btn:hover {
       color: var(--text-1);
       border-color: var(--accent-border);
+    }
+    .sheet-close-btn:active {
+      transform: scale(0.95);
     }
 
     .sheet-group-label {
@@ -1157,7 +1197,7 @@ export class ShowroomWitmindSignature extends LitElement {
       gap: var(--s2);
     }
     .switch-row {
-      height: 60px;
+      min-height: 60px;
       padding: 0 var(--s4);
       background: var(--surface-interactive);
       border: 1px solid var(--line);
@@ -1169,6 +1209,7 @@ export class ShowroomWitmindSignature extends LitElement {
       transition: all var(--motion-fast);
     }
     .switch-row:hover { border-color: var(--accent-border); }
+    .switch-row:active { transform: scale(0.985); }
     .switch-row.is-on {
       border-color: var(--accent-border);
       background: var(--accent-soft);
@@ -1197,6 +1238,7 @@ export class ShowroomWitmindSignature extends LitElement {
       background: var(--line);
       position: relative;
       transition: all var(--motion-normal);
+      flex-shrink: 0;
     }
     .switch-toggle::after {
       content: "";
@@ -1224,13 +1266,16 @@ export class ShowroomWitmindSignature extends LitElement {
     }
     .sheet-action-btn {
       flex: 1;
-      height: 44px;
+      min-height: 48px;
       border-radius: var(--r-control);
       border: 1px solid var(--line);
       font-size: var(--s3);
       font-weight: 640;
       cursor: pointer;
+      transition: all var(--motion-fast);
+      font-family: inherit;
     }
+    .sheet-action-btn:active { transform: scale(0.97); }
     .sheet-action-btn.is-primary {
       background: var(--accent);
       color: #ffffff;
@@ -1243,6 +1288,182 @@ export class ShowroomWitmindSignature extends LitElement {
     }
 
     .active-accent { color: var(--accent) !important; }
+
+    /* ==========================================================================
+       ARCHITECTURAL RESPONSIVE ADAPTATION SYSTEM (witmind-ui skill)
+       Tier 1: Desktop (> 1200px)
+       Tier 2: Laptop & Tablet Landscape (900px – 1199px)
+       Tier 3: Tablet Portrait & Compact Panel (640px – 899px)
+       Tier 4: Mobile Handheld (< 640px)
+       ========================================================================== */
+
+    /* Tier 2: Laptop & Tablet Landscape (<= 1180px) */
+    @media (max-width: 1180px) {
+      .app-frame {
+        padding:
+          max(var(--s4), env(safe-area-inset-top))
+          max(var(--s5), env(safe-area-inset-right))
+          max(100px, calc(env(safe-area-inset-bottom) + 78px))
+          max(var(--s5), env(safe-area-inset-left));
+        gap: var(--s4);
+      }
+      .grid-top-quad {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--s4);
+      }
+      .grid-mid-trio {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--s4);
+      }
+      .calendar-card {
+        grid-column: 1 / -1;
+      }
+    }
+
+    /* Tier 3: Tablet Portrait (<= 960px) */
+    @media (max-width: 960px) {
+      .header {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+          "brand clock"
+          "pills pills";
+        gap: var(--s3);
+        min-height: auto;
+      }
+      .header-brand-wrap {
+        display: contents;
+      }
+      .brand-block {
+        grid-area: brand;
+      }
+      .header-clock-wrap {
+        grid-area: clock;
+      }
+      .pills-strip {
+        grid-area: pills;
+        width: 100%;
+        padding-bottom: 2px;
+        -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+        mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+      }
+      .grid-mid-trio {
+        grid-template-columns: 1fr;
+        gap: var(--s4);
+      }
+      .calendar-card {
+        grid-column: auto;
+      }
+    }
+
+    /* Tier 4: Mobile & Touch Compact (<= 640px) */
+    @media (max-width: 640px) {
+      .app-frame {
+        padding:
+          max(var(--s3), env(safe-area-inset-top))
+          max(var(--s3), env(safe-area-inset-right))
+          max(92px, calc(env(safe-area-inset-bottom) + 72px))
+          max(var(--s3), env(safe-area-inset-left));
+        gap: var(--s3);
+      }
+      .card {
+        padding: var(--s4);
+      }
+      .clock-digits {
+        font-size: clamp(28px, 6.5vw, 36px);
+      }
+      .date-label {
+        font-size: 11px;
+      }
+      .theme-toggle-btn {
+        min-height: 28px;
+        padding: 2px 8px;
+        font-size: 10px;
+      }
+      .hero-card {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--s4);
+        padding: var(--s4);
+      }
+      .hero-title {
+        font-size: clamp(20px, 4.8vw, 24px);
+      }
+      .hero-segmented-nav {
+        width: 100%;
+        display: flex;
+      }
+      .nav-segment-btn {
+        flex: 1;
+        text-align: center;
+        min-height: 44px;
+        padding: 0 var(--s2);
+      }
+      .grid-top-quad {
+        grid-template-columns: 1fr;
+        gap: var(--s3);
+      }
+      .grid-mid-trio {
+        grid-template-columns: 1fr;
+        gap: var(--s3);
+      }
+      .grid-page2-pair {
+        grid-template-columns: 1fr;
+        gap: var(--s3);
+      }
+      .shortcuts-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--s2);
+      }
+      .sc-item {
+        min-height: 48px;
+        padding: 6px 10px;
+      }
+      .wit-dock {
+        width: calc(100vw - 24px);
+        max-width: 480px;
+        justify-content: space-around;
+        padding: 4px 6px;
+        gap: 4px;
+      }
+      .dock-btn {
+        padding: 0 var(--s2);
+        min-height: 44px;
+        font-size: 12px;
+        gap: 6px;
+      }
+      .dock-dots-group {
+        display: none;
+      }
+
+      /* Mobile Bottom Sheet Modal Transition */
+      .sheet-scrim {
+        align-items: flex-end;
+        padding: 0;
+      }
+      .sheet-modal {
+        width: 100%;
+        max-height: 88dvh;
+        border-radius: var(--r-panel) var(--r-panel) 0 0;
+        border-bottom: none;
+        padding: var(--s4) var(--s4) max(var(--s5), env(safe-area-inset-bottom)) var(--s4);
+        gap: var(--s4);
+        animation: slideUpSheet var(--motion-normal) var(--ease-apple);
+      }
+      @keyframes slideUpSheet {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
   `;
 
   connectedCallback() {
