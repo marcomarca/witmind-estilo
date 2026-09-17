@@ -10,8 +10,8 @@ La instalación paralela vigente en Home Assistant es `Witmind Next`.
 | --- | --- |
 | Panel bridge | `/config/www/witmind-ui-panel.js` |
 | Aplicación estable | `/config/www/witmind-ui/current.json` |
-| Release activa | `0.1.5` |
-| Releases conservadas | `0.1.0`, `0.1.1`, `0.1.2`, `0.1.3`, `0.1.4`, `0.1.5` y la antigua `1.0.0` |
+| Release activa | `0.1.6` |
+| Releases conservadas | `0.1.0`, `0.1.1`, `0.1.2`, `0.1.3`, `0.1.4`, `0.1.5`, `0.1.6` y la antigua `1.0.0` |
 | Integración SQLite | `/config/custom_components/witmind_core/` |
 | Base de datos | `/config/witmind/witmind.db` |
 | Puerto DEV | `192.168.20.44:5174` |
@@ -19,7 +19,7 @@ La instalación paralela vigente en Home Assistant es `Witmind Next`.
 
 La aplicación nueva no reemplaza todavía `witmind-panel`, `showroom-3d-panel`, `showroom-v2-panel` ni los demás paneles. Se migra uno por uno y cada versión se publica como una release inmutable.
 
-La release `0.1.3` añade el panel paralelo `Witmind Lobby`. Reutiliza la UI del showroom con `panel_kind: lobby`, las cuatro entidades reales del Lobby y las escenas `Visita`/`Regular`. Su energía usa temporalmente `sensor.showroom_energia_estimada`, que es la estimación global existente; no se inventan potencias para los circuitos del Lobby. Las releases `0.1.4`/`0.1.5` añaden el proxy persistente de `weather/subscribe_forecast`, de modo que el pronóstico diario se actualiza desde Home Assistant sin refrescar la página.
+La release `0.1.3` añade el panel paralelo `Witmind Lobby`. Reutiliza la UI del showroom con `panel_kind: lobby`, las cuatro entidades reales del Lobby y las escenas `Visita`/`Regular`. Su energía usa temporalmente `sensor.showroom_energia_estimada`, que es la estimación global existente; no se inventan potencias para los circuitos del Lobby. Las releases `0.1.4`/`0.1.5` añaden el proxy persistente de `weather/subscribe_forecast`; la `0.1.6` conecta la hamburguesa visual con el evento oficial `hass-toggle-menu` de Home Assistant.
 
 ## Principios que no se deben romper
 
