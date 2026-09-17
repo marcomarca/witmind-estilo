@@ -22,6 +22,7 @@ export class PostMessageHaClient implements WitmindHaClient {
   private states = new Map<string, WitmindEntity>();
   private listeners = new Set<WitmindEntityListener>();
   private pending = new Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: number; listener?: (event: unknown) => void }>();
+  private subscriptions = new Map<string, (event: unknown) => void>();
 
   constructor(private readonly target: Window = window.parent) {
     window.addEventListener("message", (event) => this.onMessage(event));
@@ -42,7 +43,10 @@ export class PostMessageHaClient implements WitmindHaClient {
   haRequest<T>(command: string, payload = {}) { return this.request<T>("WITMIND_HA_COMMAND", "WITMIND_HA_RESULT", { command, payload }); }
   haSubscribe<T>(command: string, payload: Record<string, unknown>, listener: (event: T) => void) {
     const requestId = nextId();
-    const unsubscribe = () => this.post({ type: "WITMIND_HA_UNSUBSCRIBE", requestId });
+    const unsubscribe = () => {
+      this.subscriptions.delete(requestId);
+      this.post({ type: "WITMIND_HA_UNSUBSCRIBE", requestId });
+    };
     return new Promise<() => void>((resolve, reject) => {
       const timer = window.setTimeout(() => {
         this.pending.delete(requestId);
@@ -52,8 +56,8 @@ export class PostMessageHaClient implements WitmindHaClient {
         resolve: () => { window.clearTimeout(timer); resolve(unsubscribe); },
         reject,
         timer,
-        listener: listener as (event: unknown) => void,
       });
+      this.subscriptions.set(requestId, listener as (event: unknown) => void);
       this.post({ type: "WITMIND_HA_SUBSCRIBE", requestId, command, payload });
     });
   }
@@ -74,7 +78,7 @@ export class PostMessageHaClient implements WitmindHaClient {
     if (event.source !== this.target || event.data?.protocol !== 1 || event.data?.source !== "witmind-ha") return;
     const message = event.data;
     if (message.type === "WITMIND_HA_EVENT") {
-      this.pending.get(message.requestId)?.listener?.(message.result);
+      this.subscriptions.get(message.requestId)?.(message.result);
       return;
     }
     if (message.type === "WITMIND_ENTITY_UPDATE") {
