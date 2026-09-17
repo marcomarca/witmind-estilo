@@ -34,7 +34,10 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5174,
-      open: true
+      open: false,
+      watch: {
+        ignored: ["**/*.zip", "**/artifacts/**", "**/reference-analysis/**"]
+      }
     },
     build: {
       rollupOptions: {
