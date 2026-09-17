@@ -26,6 +26,28 @@ export default defineConfig(({ mode }) => {
     };
   }
 
+  if (mode === "panel") {
+    return {
+      base: "./",
+      resolve: {
+        alias: {
+          "@": resolve(__dirname, "src")
+        }
+      },
+      server: {
+        port: 5174,
+        host: "0.0.0.0",
+        strictPort: true,
+        open: false
+      },
+      build: {
+        outDir: "dist-panel",
+        emptyOutDir: true,
+        rollupOptions: { input: resolve(__dirname, "witmind-ui.html") }
+      }
+    };
+  }
+
   return {
     resolve: {
       alias: {
@@ -34,6 +56,8 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5174,
+      host: "0.0.0.0",
+      strictPort: true,
       open: false,
       watch: {
         ignored: ["**/*.zip", "**/artifacts/**", "**/reference-analysis/**"]
@@ -43,6 +67,8 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         input: {
           main: resolve(__dirname, "index.html"),
+          app: resolve(__dirname, "witmind-ui.html"),
+          panel: resolve(__dirname, "showroom-panel.html"),
           dark: resolve(__dirname, "showroom-witmind-signature.html"),
           light: resolve(__dirname, "showroom-witmind-signature-light.html"),
           lab: resolve(__dirname, "lab/index.html")

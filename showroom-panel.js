@@ -1,4 +1,4 @@
-// Witmind Showroom Panel v1.6.0 — Architectural Signature Edition
+// Witmind Showroom Panel v1.6.0 - Architectural Signature Edition
 // Compatible con Home Assistant Custom Panel & Mock Provider
 
 const DEFAULT_SHOWROOM_CONFIG = Object.freeze({
@@ -231,6 +231,7 @@ class ShowroomPanel extends HTMLElement {
     this._energyScrollLeft = null;
     this._themeStorageKey = "witmind-showroom-panel-theme";
     this._theme = this._loadTheme();
+    this._activeView = "home";
 
     this.shadowRoot.addEventListener("click", (event) => this._handleClick(event));
     this.shadowRoot.addEventListener("scroll", (event) => this._handleEnergyScroll(event), true);
@@ -242,6 +243,8 @@ class ShowroomPanel extends HTMLElement {
     const relevantChanged = this._relevantHassChanged(previous, value);
     const energyChanged =
       !previous || previous.states?.[config.energySensor] !== value?.states?.[config.energySensor];
+    const energyAppeared =
+      !previous?.states?.[config.energySensor] && Boolean(value?.states?.[config.energySensor]);
 
     this._hass = value;
 
@@ -251,7 +254,15 @@ class ShowroomPanel extends HTMLElement {
       this._started = true;
       this._start();
     } else if (energyChanged) {
-      this._scheduleEnergyRefresh();
+      // The iframe receives entity states asynchronously. If the energy entity
+      // arrives after the first render, load immediately instead of waiting for
+      // the normal 30s refresh interval (which previously left the empty state
+      // visible until the user pressed Refresh).
+      if (energyAppeared) {
+        this._loadEnergyStatistics();
+      } else {
+        this._scheduleEnergyRefresh();
+      }
     }
 
     if (relevantChanged) this._requestRender();
@@ -334,6 +345,14 @@ class ShowroomPanel extends HTMLElement {
     }
     if (action === "toggle-theme") {
       this._toggleTheme();
+      return;
+    }
+    if (action === "set-view") {
+      const view = target.dataset.view;
+      if (["home", "lights", "energy", "system"].includes(view)) {
+        this._activeView = view;
+        this._requestRender();
+      }
       return;
     }
     if (action === "toggle-switch") {
@@ -1089,13 +1108,13 @@ class ShowroomPanel extends HTMLElement {
 
   _formatEnergy(value, digits = 2) {
     const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return "—";
+    if (!Number.isFinite(numeric)) return "--";
     return numeric.toLocaleString("es-BO", { minimumFractionDigits: digits, maximumFractionDigits: digits });
   }
 
   _energyLabel(timestamp, range = this._energyRange) {
     const date = new Date(Number(timestamp));
-    if (!Number.isFinite(date.getTime())) return "—";
+    if (!Number.isFinite(date.getTime())) return "--";
     if (range === "year") return date.toLocaleDateString("es-BO", { month: "short" }).replace(".", "");
     if (range === "month") return String(date.getDate());
     return date.toLocaleTimeString("es-BO", { hour: "2-digit", minute: "2-digit", hour12: false });
@@ -1564,7 +1583,7 @@ class ShowroomPanel extends HTMLElement {
 
     const current = Number(this._state(entityId)?.state);
     if (Number.isFinite(current)) points.push({ value: current, time: endTime });
-    if (!points.length) return { path: "", min: "—", max: "—", avg: "—" };
+    if (!points.length) return { path: "", min: "--", max: "--", avg: "--" };
 
     const values = points.map((item) => item.value);
     const min = Math.min(...values);
@@ -1588,7 +1607,7 @@ class ShowroomPanel extends HTMLElement {
   }
 
   _formatNumber(value) {
-    if (!Number.isFinite(value)) return "—";
+    if (!Number.isFinite(value)) return "--";
     return new Intl.NumberFormat("es-BO", { maximumFractionDigits: 1 }).format(value);
   }
 
@@ -1614,7 +1633,7 @@ class ShowroomPanel extends HTMLElement {
     }
 
     for (const element of this.shadowRoot.querySelectorAll("[data-clock-period]")) {
-      element.textContent = period || "—";
+      element.textContent = period || "";
     }
 
     const timeElement = this.shadowRoot.querySelector("[data-current-time]");
@@ -1709,9 +1728,9 @@ class ShowroomPanel extends HTMLElement {
           <div class="weather-copy">
             <span class="eyebrow">Clima · Casa</span>
             <h2>${this._escape(CONDITION_LABELS[condition] || condition)}</h2>
-            <p>Humedad ${this._escape(attrs.humidity ?? "—")}% · Viento ${this._escape(attrs.wind_speed ?? "—")} ${this._escape(attrs.wind_speed_unit ?? "")}</p>
+            <p>Humedad ${this._escape(attrs.humidity ?? "Sin datos")}% · Viento ${this._escape(attrs.wind_speed ?? "Sin datos")} ${this._escape(attrs.wind_speed_unit ?? "")}</p>
           </div>
-          <strong class="temperature">${this._escape(attrs.temperature ?? "—")}${this._escape(attrs.temperature_unit ?? "°")}</strong>
+          <strong class="temperature">${this._escape(attrs.temperature ?? "--")}${this._escape(attrs.temperature_unit ?? "°")}</strong>
         </div>
         ${config.showForecast ? `
           <div class="forecast-row">
@@ -1722,7 +1741,7 @@ class ShowroomPanel extends HTMLElement {
                 <div class="forecast-item">
                   <span>${this._escape(label)}</span>
                   <b>${this._escape(CONDITION_SYMBOLS[item.condition] || "·")}</b>
-                  <strong>${this._escape(item.temperature ?? item.native_temperature ?? "—")}°</strong>
+                  <strong>${this._escape(item.temperature ?? item.native_temperature ?? "--")}°</strong>
                 </div>
               `;
             }).join("") : '<span class="forecast-empty">Pronóstico no disponible</span>'}
@@ -1790,6 +1809,37 @@ class ShowroomPanel extends HTMLElement {
     `;
   }
 
+  _renderSceneButton(scene) {
+    const pending = this._pendingAction === scene.key;
+    const status = this._sceneStatus(scene);
+    const stateText = pending
+      ? "Aplicando..."
+      : status.active
+        ? "Activo"
+        : status.unavailable
+          ? "Sin datos"
+          : "Inactivo";
+
+    return `
+      <button
+        class="scene ${pending ? "is-pending" : ""} ${status.active ? "is-active" : ""} ${status.unavailable ? "is-unavailable" : ""}"
+        data-action="run-scene"
+        data-scene-key="${this._escape(scene.key)}"
+        data-label="${this._escape(scene.name)}"
+        aria-pressed="${status.active}"
+        aria-label="${this._escape(`${scene.name}: ${stateText}`)}"
+        ${this._pendingAction && !pending ? "disabled" : ""}
+      >
+        <span class="scene-icon">${this._icon(scene.icon)}</span>
+        <span class="scene-copy">
+          <strong>${this._escape(scene.name)}</strong>
+          <small>${this._escape(scene.subtitle)}</small>
+        </span>
+        <span class="scene-state" aria-hidden="true">${this._escape(stateText)}</span>
+      </button>
+    `;
+  }
+
   _renderSceneBlock({ eyebrow, title, scenes, className }) {
     const config = this._config();
     const activeScene = scenes.find((scene) => this._sceneStatus(scene).active);
@@ -1822,61 +1872,48 @@ class ShowroomPanel extends HTMLElement {
             </button>
           </div>
         </div>
-        <div class="scene-grid">
-          ${scenes.map((scene) => {
-            const pending = this._pendingAction === scene.key;
-            const status = this._sceneStatus(scene);
-            const stateText = pending
-              ? "Aplicando…"
-              : status.active
-                ? "Activo"
-                : status.unavailable
-                  ? "Sin datos"
-                  : "Inactivo";
-
-            return `
-              <button
-                class="scene ${pending ? "is-pending" : ""} ${status.active ? "is-active" : ""} ${status.unavailable ? "is-unavailable" : ""}"
-                data-action="run-scene"
-                data-scene-key="${this._escape(scene.key)}"
-                data-label="${this._escape(scene.name)}"
-                aria-pressed="${status.active}"
-                aria-label="${this._escape(`${scene.name}: ${stateText}`)}"
-                ${this._pendingAction && !pending ? "disabled" : ""}
-              >
-                <span class="scene-icon">${this._icon(scene.icon)}</span>
-                <span class="scene-copy">
-                  <strong>${this._escape(scene.name)}</strong>
-                  <small>${this._escape(scene.subtitle)}</small>
-                </span>
-                <span class="scene-state">${this._escape(stateText)}</span>
-              </button>
-            `;
-          }).join("")}
-        </div>
+        <div class="scene-grid">${scenes.map((scene) => this._renderSceneButton(scene)).join("")}</div>
       </section>
     `;
   }
 
   _renderScenes() {
     const config = this._config();
+    const scenes = [...config.scenes, ...config.sampleScenes];
+    const activeScene = scenes.find((scene) => this._sceneStatus(scene).active);
+    const clearPending = this._pendingAction === config.powerOffScript;
+    const hasControlledLightsOn = config.sceneControlEntities.some(
+      (entityId) => this._state(entityId)?.state === "on",
+    );
+    const clearDisabled = Boolean(this._pendingAction) || !hasControlledLightsOn;
+
     return `
-      ${this._renderSceneBlock({
-        eyebrow: "Ambientes",
-        title: "Escenas",
-        scenes: config.scenes,
-        className: "presentation-scenes-card",
-      })}
-      ${this._renderSceneBlock({
-        eyebrow: "Muestras",
-        title: "Escenas de muestra",
-        scenes: config.sampleScenes,
-        className: "sample-scenes-card",
-      })}
+      <section class="surface scenes-card quick-scenes-card">
+        <div class="section-heading compact-heading scenes-heading">
+          <div>
+            <span class="section-kicker">Ambientes</span>
+            <h2>Escenas rápidas</h2>
+          </div>
+          <div class="scene-heading-actions">
+            <span class="scene-summary ${activeScene ? "is-active" : ""}">${this._escape(clearPending ? "Apagando..." : activeScene ? activeScene.name : "Manual")}</span>
+            <button
+              class="clear-scene-button"
+              data-action="clear-scene"
+              aria-label="Apagar toda la iluminación de escenas"
+              title="Apagar escena"
+              ${clearDisabled && !clearPending ? "disabled" : ""}
+            >
+              <span>${this._icon("power")}</span>
+              <strong>${clearPending ? "Apagando..." : "Apagar"}</strong>
+            </button>
+          </div>
+        </div>
+        <div class="scene-grid quick-scene-grid">${scenes.map((scene) => this._renderSceneButton(scene)).join("")}</div>
+      </section>
     `;
   }
 
-  _renderGeneralControl() {
+  _renderGeneralControl(includeReflector = true) {
     const config = this._config();
     const onPending = this._pendingAction === config.powerOnScript;
     const offPending = this._pendingAction === config.powerOffScript;
@@ -1898,7 +1935,7 @@ class ShowroomPanel extends HTMLElement {
             <strong>${offPending ? "Apagando…" : "Apagar todo"}</strong>
           </button>
         </div>
-        ${config.reflector ? `
+        ${includeReflector && config.reflector ? `
           <div class="isolated-control">
             <span class="isolated-label">Control aislado</span>
             ${this._renderDevice(config.reflector)}
@@ -1933,7 +1970,7 @@ class ShowroomPanel extends HTMLElement {
           </div>
           <div class="energy-current" title="Consumo estimado desde el inicio del mes actual hasta ahora">
             <small>Consumo del mes</small>
-            <strong>${this._energyLoading && this._energyMonthTotal === null ? "…" : this._energyMonthTotal === null ? "—" : `${this._formatEnergy(this._energyMonthTotal)} kWh`}</strong>
+            <strong>${this._energyLoading && this._energyMonthTotal === null ? "..." : this._energyMonthTotal === null ? "Sin datos" : `${this._formatEnergy(this._energyMonthTotal)} kWh`}</strong>
             <span>${this._escape(monthStartLabel)} · hasta ahora</span>
           </div>
         </div>
@@ -1954,7 +1991,7 @@ class ShowroomPanel extends HTMLElement {
           <div class="energy-stat"><small>Mayor intervalo</small><strong>${this._energyLoading && !this._energyData.length ? "…" : `${this._formatEnergy(peak)} kWh`}</strong><span>Pico estimado del período</span></div>
         </div>
 
-        <div class="energy-note">9 circuitos incluidos · potencia instalada conocida 1.395 kW · reflector exterior pendiente de potencia</div>
+        <div class="energy-note">9 circuitos incluidos. Potencia instalada conocida: 1.395 kW. Reflector exterior pendiente de potencia.</div>
 
         <div class="energy-chart-card">
           <div class="energy-chart-title"><strong>${this._energyRange === "day" ? "Consumo por hora" : this._energyRange === "month" ? "Consumo por día" : "Consumo por mes"}</strong><span>${this._escape(definition.title)}</span></div>
@@ -2021,6 +2058,78 @@ class ShowroomPanel extends HTMLElement {
     `;
   }
 
+  _renderNavigation() {
+    const items = [
+      ["home", "bulb", "Inicio"],
+      ["lights", "spot", "Iluminación"],
+      ["energy", "energy", "Energía"],
+      ["system", "health", "Sistema"],
+    ];
+
+    return `
+      <nav class="view-navigation" aria-label="Secciones del showroom">
+        ${items.map(([view, icon, label]) => `
+          <button
+            class="view-navigation-button ${this._activeView === view ? "is-active" : ""}"
+            data-action="set-view"
+            data-view="${view}"
+            aria-current="${this._activeView === view ? "page" : "false"}"
+          >
+            ${this._icon(icon)}
+            <span>${label}</span>
+          </button>
+        `).join("")}
+      </nav>
+    `;
+  }
+
+  _renderActiveView(config) {
+    if (this._activeView === "lights") {
+      return `
+        <section class="view-panel view-lights" aria-labelledby="lights-view-title">
+          <header class="view-heading">
+            <div><span class="section-kicker">Control directo</span><h1 id="lights-view-title">Iluminación</h1></div>
+            <span>${config.spots.length + config.samples.length + (config.reflector ? 1 : 0)} circuitos</span>
+          </header>
+          <div class="lighting-layout">
+            <section class="surface control-section spots-section">
+              <div class="section-heading compact-heading"><div><h2>Spots</h2></div></div>
+              <div class="device-grid">${config.spots.map((item) => this._renderDevice(item)).join("")}</div>
+            </section>
+            <section class="surface control-section samples-section">
+              <div class="section-heading compact-heading"><div><h2>Muestras</h2></div></div>
+              <div class="device-grid">${config.samples.map((item) => this._renderDevice(item)).join("")}</div>
+            </section>
+            ${config.reflector ? `<section class="surface control-section reflector-section"><div class="section-heading compact-heading"><div><h2>Exterior</h2></div></div>${this._renderDevice(config.reflector)}</section>` : ""}
+          </div>
+        </section>
+      `;
+    }
+
+    if (this._activeView === "energy") {
+      return `<section class="view-panel view-energy" aria-label="Energía">${this._renderActivity()}</section>`;
+    }
+
+    if (this._activeView === "system") {
+      return `
+        <section class="view-panel view-system" aria-labelledby="system-view-title">
+          <header class="view-heading"><div><span class="section-kicker">Estado</span><h1 id="system-view-title">Sistema</h1></div></header>
+          <div class="system-layout">${this._renderWeather()}${this._renderSystem()}</div>
+        </section>
+      `;
+    }
+
+    return `
+      <section class="view-panel view-home" aria-label="Inicio">
+        ${this._renderScenes()}
+        <div class="home-layout">
+          ${this._renderGeneralControl(false)}
+          ${this._renderMedia()}
+        </div>
+      </section>
+    `;
+  }
+
   render() {
     if (!this.shadowRoot || !this._hass) return;
     this._captureEnergyChartScroll();
@@ -2031,6 +2140,11 @@ class ShowroomPanel extends HTMLElement {
     const weatherAttrs = weather?.attributes || {};
     const condition = weather?.state;
     const nextTheme = this._theme === "dark" ? "claro" : "oscuro";
+    const configuredLights = [...config.spots, ...config.samples, ...(config.reflector ? [config.reflector] : [])];
+    const lightsOn = configuredLights.filter((item) => this._visibleSwitchState(item.entity) === "on").length;
+    const mediaState = this._state(config.mediaPlayer)?.state;
+    const mediaLabel = mediaState === "playing" ? "Reproduciendo" : mediaState === "paused" ? "En pausa" : "Detenido";
+    const energyLabel = this._energyMonthTotal === null ? "Sin datos" : `${this._formatEnergy(this._energyMonthTotal)} kWh`;
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -2621,6 +2735,248 @@ class ShowroomPanel extends HTMLElement {
           .energy-summary { grid-template-columns: 1fr; }
         }
 
+        /* Witmind Signature operational layout */
+        :host {
+          --background: var(--wit-canvas, #071118);
+          --background-secondary: var(--wit-canvas, #071118);
+          --background-deep: var(--wit-canvas, #071118);
+          --surface: var(--wit-surface, rgba(16, 25, 30, 0.90));
+          --surface-strong: var(--wit-surface-raised, #162126);
+          --surface-control: var(--wit-surface-interactive, #1b282e);
+          --surface-hover: var(--wit-surface-interactive-hover, #23333b);
+          --surface-active: var(--wit-surface-active, rgba(242, 101, 34, 0.14));
+          --text-primary: var(--wit-text-primary, #f5f6f4);
+          --text-secondary: var(--wit-text-secondary, #adb4b6);
+          --text-tertiary: var(--wit-text-tertiary, #747e82);
+          --border-subtle: var(--wit-border-subtle, rgba(255, 255, 255, 0.06));
+          --border-default: var(--wit-border-default, rgba(255, 255, 255, 0.09));
+          --header: var(--wit-surface-glass, rgba(16, 25, 30, 0.88));
+          min-height: 100dvh;
+          background:
+            radial-gradient(760px 460px at 88% -8%, rgba(242, 101, 34, 0.12), transparent 68%),
+            var(--background);
+        }
+        :host([data-theme="light"]) {
+          --background: var(--wit-canvas-light, #f3f3ef);
+          --background-secondary: var(--wit-canvas-light, #f3f3ef);
+          --background-deep: var(--wit-canvas-light, #f3f3ef);
+          --surface: var(--wit-surface-light, rgba(255, 255, 255, 0.88));
+          --surface-strong: var(--wit-surface-raised-light, #ffffff);
+          --surface-control: var(--wit-surface-interactive-light, #f8fafc);
+          --surface-hover: #f4f5f2;
+          --surface-active: rgba(242, 101, 34, 0.10);
+          --text-primary: #182126;
+          --text-secondary: #667176;
+          --text-tertiary: #92999c;
+          --border-subtle: rgba(18, 32, 38, 0.06);
+          --border-default: rgba(18, 32, 38, 0.09);
+          --header: rgba(255, 255, 255, 0.88);
+          background:
+            radial-gradient(760px 460px at 88% -8%, rgba(242, 101, 34, 0.09), transparent 68%),
+            var(--background);
+        }
+        .app-shell { min-height: 100dvh; }
+        .topbar {
+          position: relative;
+          min-height: 80px;
+          padding: 14px clamp(20px, 3vw, 44px);
+          gap: 24px;
+          border-bottom-color: var(--border-subtle);
+          box-shadow: none;
+        }
+        .topbar-start { flex: 0 0 auto; gap: 14px; }
+        .menu-button, .theme-button {
+          width: 44px;
+          height: 44px;
+          flex-basis: 44px;
+          background: transparent;
+          border-color: var(--border-default);
+        }
+        .brand { display: grid; gap: 1px; line-height: 1; }
+        .brand-wordmark { font-size: 17px; font-weight: 760; letter-spacing: 0.055em; }
+        .brand > span { color: var(--primary); font-size: 9px; font-weight: 750; letter-spacing: 0.10em; }
+        .status-strip { min-width: 0; display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1 1 auto; }
+        .status-pill {
+          min-height: 48px;
+          padding: 0 14px;
+          display: grid;
+          grid-template-columns: 24px auto;
+          align-items: center;
+          gap: 9px;
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-pill);
+          color: var(--text-primary);
+          background: var(--surface);
+          text-align: left;
+          cursor: pointer;
+          transition: transform var(--motion), border-color var(--motion), background var(--motion);
+        }
+        .status-pill:hover { transform: translateY(-1px); border-color: var(--primary-border); }
+        .status-pill:active { transform: scale(0.98); }
+        .status-pill.is-active { border-color: var(--primary-border); background: var(--surface-active); }
+        .status-pill-icon { display: grid; place-items: center; color: var(--text-tertiary); }
+        .status-pill.is-active .status-pill-icon { color: var(--primary); }
+        .status-pill strong, .status-pill small { display: block; white-space: nowrap; }
+        .status-pill strong { font-size: 11px; font-weight: 680; }
+        .status-pill small { margin-top: 2px; color: var(--text-tertiary); font-size: 9px; font-weight: 560; }
+        .topbar-meta { gap: 14px; }
+        .header-clock { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+        .header-clock strong { font-size: 30px; font-weight: 470; letter-spacing: -0.045em; }
+        .header-clock span { color: var(--text-tertiary); font-size: 9px; font-weight: 720; letter-spacing: 0.08em; }
+        .header-weather { min-width: 74px; padding-left: 14px; display: flex; align-items: center; gap: 7px; border-left: 1px solid var(--border-default); }
+        .header-weather span { color: var(--primary); font-size: 18px; }
+        .header-weather strong { font-size: 13px; font-weight: 700; }
+
+        .dashboard { width: min(1480px, 100%); padding: clamp(20px, 2.6vw, 40px); }
+        .workspace-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
+        .workspace-heading h1, .view-heading h1 { margin: 3px 0 0; font-size: clamp(26px, 2.6vw, 36px); font-weight: 720; letter-spacing: -0.035em; line-height: 1.05; }
+        .section-kicker { color: var(--primary); font-size: 10px; font-weight: 720; letter-spacing: 0.09em; text-transform: uppercase; }
+        .view-navigation {
+          display: inline-grid;
+          grid-template-columns: repeat(4, auto);
+          gap: 3px;
+          padding: 4px;
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-pill);
+          background: var(--surface);
+        }
+        .view-navigation-button {
+          min-height: 44px;
+          padding: 0 16px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          border: 0;
+          border-radius: var(--radius-pill);
+          background: transparent;
+          color: var(--text-secondary);
+          font: inherit;
+          font-size: 11px;
+          font-weight: 650;
+          cursor: pointer;
+          transition: color var(--motion), background var(--motion), transform var(--motion);
+        }
+        .view-navigation-button .icon { width: 17px; height: 17px; }
+        .view-navigation-button:hover { color: var(--text-primary); }
+        .view-navigation-button:active { transform: scale(0.97); }
+        .view-navigation-button.is-active { color: #ffffff; background: var(--primary); }
+
+        .view-panel { animation: view-enter 180ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+        @keyframes view-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+        .view-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+        .view-heading > span { color: var(--text-tertiary); font-size: 11px; font-weight: 620; }
+        .surface {
+          border-color: var(--border-default);
+          border-radius: var(--radius-lg);
+          background: var(--surface);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.025);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+        }
+        :host([data-theme="light"]) .surface { box-shadow: 0 12px 34px rgba(18, 32, 38, 0.055); }
+
+        .quick-scenes-card { padding: clamp(18px, 2vw, 26px); }
+        .quick-scene-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+        .section-heading h2 { font-size: 19px; font-weight: 700; }
+        .scene {
+          min-height: 76px;
+          padding: 12px;
+          grid-template-columns: 40px minmax(0, 1fr);
+          gap: 11px;
+          border-radius: var(--radius-control, 14px);
+          background: var(--surface-control);
+          box-shadow: none;
+        }
+        .scene-icon { width: 40px; height: 40px; border-radius: 12px; }
+        .scene strong { font-size: 12px; font-weight: 680; }
+        .scene small { color: var(--text-tertiary); font-size: 9px; font-weight: 540; }
+        .scene-state { display: none; }
+        .scene.is-active { border-color: var(--primary-border); background: var(--surface-active); box-shadow: inset 3px 0 0 var(--primary); }
+        .scene-summary { background: transparent; }
+        .clear-scene-button { min-height: 40px; background: transparent; }
+        .home-layout { margin-top: 14px; display: grid; grid-template-columns: minmax(300px, 0.85fr) minmax(420px, 1.15fr); gap: 14px; align-items: stretch; }
+        .home-layout > .surface { min-height: 220px; padding: 20px; }
+        .general-card, .media-card, .system-card, .activity-card, .energy-shell { grid-column: auto; }
+        .general-actions { gap: 10px; }
+        .general-action { min-height: 68px; background: var(--surface-control); }
+        .general-action strong { font-size: 12px; font-weight: 680; }
+        .media-body { min-height: 72px; }
+        .media-controls { margin-top: 14px; }
+        .media-button { min-height: 46px; }
+
+        .lighting-layout { display: grid; grid-template-columns: 5fr 7fr; gap: 14px; align-items: start; }
+        .lighting-layout .surface { padding: 22px; }
+        .spots-section, .samples-section, .reflector-section { grid-column: auto; }
+        .lighting-layout .device-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .samples-section .device:last-child { grid-column: 1 / -1; }
+        .reflector-section { grid-column: 1 / 2; }
+        .device {
+          min-height: 70px;
+          padding: 12px 14px;
+          border-radius: var(--radius-control, 14px);
+          background: var(--surface-control);
+          box-shadow: none;
+        }
+        .device-copy strong { font-size: 12px; font-weight: 680; }
+        .device-copy small { color: var(--text-tertiary); font-size: 9px; font-weight: 540; }
+        .device.is-on { box-shadow: inset 3px 0 0 var(--primary); }
+
+        .view-energy .energy-shell { padding: clamp(18px, 2.2vw, 28px); }
+        .energy-heading .eyebrow, .general-card .eyebrow, .media-card .eyebrow, .system-card .eyebrow, .weather-card .eyebrow { padding: 0; min-height: 0; border: 0; background: transparent; color: var(--text-tertiary); }
+        .energy-current, .energy-stat, .energy-note, .energy-chart-card { box-shadow: none; }
+        .system-layout { display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 14px; }
+        .system-layout > .surface { min-height: 260px; padding: 24px; }
+        .weather-main { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 14px; align-items: center; }
+        .weather-symbol { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; color: var(--primary); background: var(--primary-soft); font-size: 22px; }
+        .weather-copy h2 { margin: 3px 0 0; font-size: 20px; font-weight: 700; }
+        .weather-copy p { margin: 5px 0 0; color: var(--text-tertiary); font-size: 10px; }
+        .temperature { font-size: 30px; font-weight: 560; letter-spacing: -0.04em; }
+        .forecast-row { margin-top: 24px; padding-top: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; border-top: 1px solid var(--border-subtle); }
+        .forecast-item { display: grid; gap: 5px; text-align: center; }
+        .forecast-item span { color: var(--text-tertiary); font-size: 9px; text-transform: capitalize; }
+        .forecast-item b { color: var(--primary); font-size: 18px; font-weight: 500; }
+        .forecast-item strong { font-size: 12px; }
+        .system-grid { margin-top: 18px; }
+        .system-tile { min-height: 76px; }
+
+        @container showroom-panel (max-width: 1080px) {
+          .status-pill { padding: 0 11px; }
+          .status-pill small { display: none; }
+          .view-navigation-button { padding: 0 12px; }
+          .quick-scene-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+          .home-layout, .lighting-layout, .system-layout { grid-template-columns: 1fr; }
+          .reflector-section { grid-column: auto; }
+        }
+        @container showroom-panel (max-width: 860px) {
+          .status-strip { display: none; }
+        }
+        @container showroom-panel (max-width: 760px) {
+          .topbar { min-height: 68px; padding: 10px 14px; gap: 10px; }
+          .brand > span, .status-strip, .header-weather { display: none; }
+          .header-clock strong { font-size: 24px; }
+          .dashboard { padding: 16px 14px 88px; }
+          .workspace-heading { display: grid; gap: 16px; align-items: stretch; }
+          .workspace-heading > div { display: none; }
+          .view-navigation { width: 100%; grid-template-columns: repeat(4, 1fr); border-radius: 18px; }
+          .view-navigation-button { padding: 0 8px; gap: 5px; }
+          .view-navigation-button span { font-size: 9px; }
+          .quick-scene-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+          .scene-heading-actions .scene-summary { display: none; }
+          .home-layout { grid-template-columns: 1fr; }
+          .lighting-layout .device-grid { grid-template-columns: 1fr; }
+          .samples-section .device:last-child { grid-column: auto; }
+          .system-layout > .surface { min-height: 0; }
+          .energy-current { min-width: 0; text-align: left; }
+        }
+        @container showroom-panel (max-width: 460px) {
+          .brand { display: none; }
+          .topbar-meta { gap: 8px; }
+          .quick-scene-grid { grid-template-columns: 1fr !important; }
+          .view-navigation-button .icon { display: none; }
+          .dialog-actions { grid-template-columns: 1fr; }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition-duration: 0.01ms !important; }
         }
@@ -2635,52 +2991,47 @@ class ShowroomPanel extends HTMLElement {
               aria-label="Abrir menú de navegación de Home Assistant"
               title="Abrir menú"
             >${MENU_ICON}</button>
-            <div class="brand">
-              <div class="logo-frame"><img src="${this._escape(config.logo)}" alt="Witmind"></div>
+            <div class="brand" aria-label="Witmind Showroom">
+              <strong class="brand-wordmark">WITMIND</strong>
+              <span>${this._escape(config.siteLabel)}</span>
             </div>
           </div>
+          <div class="status-strip" aria-label="Resumen del showroom">
+            <button class="status-pill ${lightsOn ? "is-active" : ""}" data-action="set-view" data-view="lights">
+              <span class="status-pill-icon">${this._icon("bulb")}</span>
+              <span><strong>${lightsOn} de ${configuredLights.length}</strong><small>Luces</small></span>
+            </button>
+            <button class="status-pill ${mediaState === "playing" ? "is-active" : ""}" data-action="set-view" data-view="home">
+              <span class="status-pill-icon">${this._icon("music")}</span>
+              <span><strong>${this._escape(mediaLabel)}</strong><small>Multimedia</small></span>
+            </button>
+            <button class="status-pill" data-action="set-view" data-view="energy">
+              <span class="status-pill-icon">${this._icon("energy")}</span>
+              <span><strong>${this._escape(energyLabel)}</strong><small>Este mes</small></span>
+            </button>
+          </div>
           <div class="topbar-meta">
+            <time class="header-clock" data-current-time>
+              <strong data-clock-time>--:--</strong>
+              <span data-clock-period></span>
+            </time>
+            <div class="header-weather" aria-label="Clima actual: ${this._escape(CONDITION_LABELS[condition] || condition || "Sin datos")}, ${this._escape(weatherAttrs.temperature ?? "Sin datos")}${this._escape(weatherAttrs.temperature_unit ?? "°")}">
+              <span aria-hidden="true">${this._escape(CONDITION_SYMBOLS[condition] || "·")}</span>
+              <strong>${this._escape(weatherAttrs.temperature ?? "--")}${this._escape(weatherAttrs.temperature_unit ?? "°")}</strong>
+            </div>
             <button class="theme-button" data-action="toggle-theme" aria-label="Cambiar a tema ${nextTheme}" title="Cambiar a tema ${nextTheme}">${THEME_ICON}</button>
           </div>
         </header>
 
         <main class="dashboard">
-          <section class="overview-grid">
-            <article class="surface hero-card">
-              <div class="hero-copy">
-                <h1>${this._escape(config.title)} <span>Witmind</span></h1>
-              </div>
-              <div class="hero-status">
-                <time class="hero-clock" data-current-time>
-                  <strong data-clock-time>--:--</strong>
-                  <span data-clock-period>--</span>
-                </time>
-                <div class="hero-weather" aria-label="Clima actual: ${this._escape(CONDITION_LABELS[condition] || condition || "Sin datos")}, ${this._escape(weatherAttrs.temperature ?? "—")}${this._escape(weatherAttrs.temperature_unit ?? "°")}">
-                  <span class="hero-weather-symbol" aria-hidden="true">${this._escape(CONDITION_SYMBOLS[condition] || "·")}</span>
-                  <span class="hero-weather-copy">
-                    <small>${this._escape(CONDITION_LABELS[condition] || condition || "Sin datos")}</small>
-                    <strong>${this._escape(weatherAttrs.temperature ?? "—")}${this._escape(weatherAttrs.temperature_unit ?? "°")}</strong>
-                  </span>
-                </div>
-              </div>
-            </article>
-          </section>
-
-          <section class="primary-grid">
-            ${this._renderScenes()}
-            <div class="control-section spots-section surface">
-              <div class="section-heading compact-heading"><div><span class="eyebrow">Iluminación</span><h2>Spots</h2></div></div>
-              <div class="device-grid">${config.spots.map((item) => this._renderDevice(item)).join("")}</div>
+          <section class="workspace-heading">
+            <div>
+              <span class="section-kicker">${this._escape(config.subtitle)}</span>
+              <h1>${this._escape(config.title)}</h1>
             </div>
-            <div class="control-section samples-section surface">
-              <div class="section-heading compact-heading"><div><span class="eyebrow">Muestras</span><h2>Luminarias</h2></div></div>
-              <div class="device-grid">${config.samples.map((item) => this._renderDevice(item)).join("")}</div>
-            </div>
-            ${this._renderGeneralControl()}
-            ${this._renderMedia()}
-            ${this._renderSystem()}
-            ${this._renderActivity()}
+            ${this._renderNavigation()}
           </section>
+          ${this._renderActiveView(config)}
         </main>
       </div>
 

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:panel": "tsc && vite build --mode panel",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

@@ -1,0 +1,15 @@
+# Merge these keys into the existing Home Assistant configuration.
+witmind_core:
+
+panel_custom:
+  - name: witmind-ui-panel
+    sidebar_title: Witmind Next
+    sidebar_icon: mdi:view-dashboard-variant
+    url_path: witmind-next
+    module_url: /local/witmind-ui-panel.js?v=0.1.1
+    require_admin: false
+    config:
+      app_base: /local/witmind-ui
+      dev_url: http://192.168.20.44:5174/witmind-ui.html
+      default_mode: stable
+      fallback_release: 0.1.0

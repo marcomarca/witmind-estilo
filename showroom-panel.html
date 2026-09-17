@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Witmind Showroom Panel — Home Assistant Panel Edition</title>
+    <title>Witmind Showroom Panel - Home Assistant Panel Edition</title>
     <!-- Single Typographic System: Manrope Variable -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -28,18 +28,21 @@
 
       /* Dev Switcher Top Bar */
       .version-top-bar {
+        display: none;
         background: rgba(16, 25, 30, 0.95);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         padding: 8px 24px;
-        display: flex;
         align-items: center;
         justify-content: space-between;
         font-size: 12px;
         position: sticky;
         top: 0;
         z-index: 99999;
+      }
+      body.dev-mode .version-top-bar {
+        display: flex;
       }
 
       .version-brand {
@@ -88,6 +91,9 @@
       showroom-panel {
         display: block;
         width: 100%;
+        min-height: 100dvh;
+      }
+      body.dev-mode showroom-panel {
         min-height: calc(100dvh - 41px);
       }
     </style>
@@ -97,7 +103,7 @@
     <div class="version-top-bar" id="devTopBar">
       <div class="version-brand">
         <span class="version-badge">HA PANEL v1.6.0</span>
-        <strong>Showroom Panel — Architectural Edition</strong>
+        <strong>Showroom Panel - Architectural Edition</strong>
       </div>
       <div class="version-links">
         <a href="/showroom-panel.html" class="current">🎛️ Showroom Panel (Actualizado)</a>
@@ -114,12 +120,15 @@
     <script src="/reference/witmind-os/mock/mock-hass.js"></script>
 
     <!-- Implementación Showroom Panel -->
-    <script src="/src/showroom-panel.js"></script>
+    <script type="module" src="/src/showroom-panel.js"></script>
 
     <!-- Registro Reactivo del Mock Hass en el Panel -->
     <script>
       (function() {
         function initShowroomPanel() {
+          if (new URLSearchParams(window.location.search).has("dev")) {
+            document.body.classList.add("dev-mode");
+          }
           const panel = document.getElementById("showroomPanel");
           if (panel && window.registerMockHassConsumer) {
             window.registerMockHassConsumer(panel);

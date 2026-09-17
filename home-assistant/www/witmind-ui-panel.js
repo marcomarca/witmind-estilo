@@ -1,0 +1,258 @@
+/*
+ * Witmind UI Panel bridge for Home Assistant.
+ * Keep this file dependency-free and stable: HA loads it from /local/www.
+ * The visual application is versioned separately under releases/<version>/.
+ */
+(function () {
+  "use strict";
+
+  const PROTOCOL = 1;
+  const DEV_TIMEOUT_MS = 4000;
+  const DEFAULT_CONFIG = Object.freeze({
+    app_base: "/local/witmind-ui",
+    dev_url: "http://192.168.20.44:5174/witmind-ui.html",
+    mode: "STABLE",
+    version: ""
+  });
+
+  const asOrigin = (url) => {
+    try { return new URL(url, window.location.href).origin; } catch (_) { return window.location.origin; }
+  };
+
+  class WitmindUiPanel extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({ mode: "open" });
+      this._hass = null;
+      this._panel = {};
+      this._narrow = false;
+      this._iframe = null;
+      this._ready = false;
+      this._stableUrl = "";
+      this._mode = "STABLE";
+      this._entityIds = new Set();
+      this._lastSentStates = new Map();
+      this._messageHandler = (event) => this._onMessage(event);
+      this._render();
+    }
+
+    _render() {
+      this.shadowRoot.innerHTML = `
+        <style>
+          :host { display: block; width: 100%; min-height: 100dvh; background: var(--primary-background-color, #071118); }
+          .frame { position: relative; width: 100%; min-height: 100dvh; }
+          iframe { display: block; width: 100%; height: 100dvh; min-height: 640px; border: 0; background: var(--primary-background-color, #071118); }
+          .status { position: fixed; inset: 50% auto auto 50%; transform: translate(-50%, -50%); z-index: 2; color: var(--primary-text-color, #f5f6f4); font: 500 13px/1.4 Manrope, system-ui, sans-serif; pointer-events: none; }
+        </style>
+        <div class="frame"><div class="status" aria-live="polite">Cargando Witmind UI…</div></div>`;
+    }
+
+    set hass(value) {
+      this._hass = value || null;
+      this._sendEntitySnapshot();
+    }
+    get hass() { return this._hass; }
+    set panel(value) {
+      this._panel = value || {};
+      this._loadFrame();
+    }
+    get panel() { return this._panel; }
+    set narrow(value) {
+      this._narrow = Boolean(value);
+      this.toggleAttribute("narrow", this._narrow);
+    }
+    get narrow() { return this._narrow; }
+
+    connectedCallback() {
+      window.addEventListener("message", this._messageHandler);
+      this._loadFrame();
+    }
+    disconnectedCallback() {
+      window.removeEventListener("message", this._messageHandler);
+      if (this._iframe) this._iframe.src = "about:blank";
+    }
+
+    _config() {
+      return { ...DEFAULT_CONFIG, ...(this._panel?.config || this._panel || {}) };
+    }
+    _storage(key) {
+      try { return window.localStorage.getItem(key) || ""; } catch (_) { return ""; }
+    }
+    _effectiveMode(config) {
+    const selected = (this._storage("witmind_ui_mode") || config.default_mode || config.mode || "STABLE").toUpperCase();
+      return ["STABLE", "DEV", "PREVIEW"].includes(selected) ? selected : "STABLE";
+    }
+    async _stableSource(config) {
+      const base = String(config.app_base || DEFAULT_CONFIG.app_base).replace(/\/$/, "");
+      const response = await fetch(`${base}/current.json`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`current.json HTTP ${response.status}`);
+      const manifest = await response.json();
+      const version = String(manifest.version || config.fallback_release || config.version || "").trim();
+      if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) throw new Error("Versión estable inválida");
+      return `${base}/releases/${encodeURIComponent(version)}/index.html`;
+    }
+    async _loadFrame() {
+      if (!this.isConnected) return;
+      const config = this._config();
+      this._mode = this._effectiveMode(config);
+      this._ready = false;
+      this._setStatus("Cargando Witmind UI…");
+      try {
+        this._stableUrl = await this._stableSource(config);
+      } catch (error) {
+        this._stableUrl = `${String(config.app_base || DEFAULT_CONFIG.app_base).replace(/\/$/, "")}/releases/${encodeURIComponent(config.fallback_release || config.version || "0.1.0")}/index.html`;
+        this._setStatus("No se pudo leer current.json; usando versión configurada.");
+        console.warn("Witmind: stable manifest unavailable", error);
+      }
+      const target = this._mode === "DEV"
+        ? (this._storage("witmind_ui_dev_url") || config.dev_url)
+        : this._mode === "PREVIEW"
+          ? `${String(config.app_base || DEFAULT_CONFIG.app_base).replace(/\/$/, "")}/releases/${encodeURIComponent(this._storage("witmind_ui_preview_version") || config.fallback_release || config.version || "0.1.0")}/index.html`
+          : this._stableUrl;
+      if (this._mode === "DEV" && !(await this._probeDev(target))) {
+        this._mode = "STABLE";
+        this._setStatus("DEV no disponible; usando STABLE.");
+        this._mountFrame(this._stableUrl, false);
+        return;
+      }
+      this._mountFrame(target, this._mode === "DEV");
+    }
+    async _probeDev(url) {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 1500);
+      try {
+        await fetch(url, { cache: "no-store", mode: "no-cors", signal: controller.signal });
+        return true;
+      } catch (_) {
+        return false;
+      } finally {
+        window.clearTimeout(timeout);
+      }
+    }
+    _mountFrame(url, allowFallback) {
+      if (!this._iframe) {
+        this._iframe = document.createElement("iframe");
+        this._iframe.title = "Witmind UI";
+        this._iframe.setAttribute("allow", "fullscreen");
+        this._iframe.addEventListener("load", () => this._sendInit());
+        this.shadowRoot.querySelector(".frame")?.append(this._iframe);
+      }
+      this._iframe.dataset.allowFallback = allowFallback ? "1" : "0";
+      this._iframe.dataset.targetOrigin = asOrigin(url);
+      this._iframe.src = url;
+      if (allowFallback) window.setTimeout(() => {
+        if (!this._ready && this._iframe?.dataset.allowFallback === "1") {
+          this._iframe.dataset.allowFallback = "0";
+          this._mode = "STABLE";
+          this._setStatus("DEV no disponible; usando STABLE.");
+          this._iframe.src = this._stableUrl;
+        }
+      }, DEV_TIMEOUT_MS);
+    }
+    _setStatus(text) {
+      const node = this.shadowRoot.querySelector(".status");
+      if (node) node.textContent = text;
+    }
+    _post(message) {
+      if (!this._iframe?.contentWindow) return;
+      this._iframe.contentWindow.postMessage({ protocol: PROTOCOL, source: "witmind-ha", ...message }, this._iframe.dataset.targetOrigin || "*");
+    }
+    _sendInit() {
+      this._post({ type: "WITMIND_INIT", mode: this._mode, narrow: this._narrow, theme: this._hass?.selectedTheme || null, panelConfig: this._config() });
+      this._sendEntitySnapshot();
+    }
+    _sendEntitySnapshot() {
+      if (!this._ready || !this._hass?.states) return;
+      const states = {};
+      const removed = [];
+      for (const id of this._entityIds) {
+        const next = this._hass.states[id];
+        const previous = this._lastSentStates.get(id);
+        if (next && next !== previous) {
+          states[id] = next;
+          this._lastSentStates.set(id, next);
+        } else if (!next && previous) {
+          removed.push(id);
+          this._lastSentStates.delete(id);
+        }
+      }
+      if (Object.keys(states).length || removed.length) {
+        this._post({ type: "WITMIND_ENTITY_UPDATE", states, removed });
+        this._post({ type: "WITMIND_ENTITY_STATES", states, removed });
+      }
+    }
+    _validSource(event) {
+      if (!this._iframe || event.source !== this._iframe.contentWindow) return false;
+      const target = this._iframe.dataset.targetOrigin;
+      return target === "*" || event.origin === target;
+    }
+    async _onMessage(event) {
+      if (!this._validSource(event)) return;
+      const message = event.data || {};
+      if (message.protocol !== PROTOCOL || message.source !== "witmind-ui") return;
+      if (message.type === "WITMIND_READY") {
+        this._ready = true;
+        this._setStatus("");
+        this._sendInit();
+        return;
+      }
+      if (message.type === "WITMIND_SUBSCRIBE_ENTITIES") {
+        this._entityIds = new Set(Array.isArray(message.entityIds) ? message.entityIds.filter((id) => typeof id === "string" && id.includes(".")) : []);
+        this._lastSentStates.clear();
+        this._sendEntitySnapshot();
+        return;
+      }
+      if (message.type === "WITMIND_CALL_SERVICE") {
+        const [domain, service] = String(message.service || "").split(".");
+        const requestId = message.requestId;
+        try {
+          if (!domain || !service || !this._hass?.callService) throw new Error("Servicio HA no disponible");
+          const result = await this._hass.callService(domain, service, message.serviceData || {}, message.target || undefined);
+          this._post({ type: "WITMIND_SERVICE_RESULT", requestId, ok: true, result });
+        } catch (error) {
+          this._post({ type: "WITMIND_SERVICE_RESULT", requestId, ok: false, error: String(error?.message || error) });
+        }
+        return;
+      }
+      if (message.type === "WITMIND_DB_REQUEST") {
+        await this._handleDbRequest(message);
+        return;
+      }
+      if (message.type === "WITMIND_HA_COMMAND") {
+        await this._handleHaCommand(message);
+        return;
+      }
+      if (message.type === "WITMIND_TOGGLE_MENU") this.dispatchEvent(new CustomEvent("hass-toggle-menu", { bubbles: true, composed: true }));
+      if (message.type === "WITMIND_SET_CONNECTION_MODE") this._mode = String(message.mode || this._mode).toUpperCase();
+      if (message.type === "WITMIND_THEME_CHANGED") this._post({ type: "WITMIND_THEME", theme: message.theme || null });
+    }
+    async _handleDbRequest(message) {
+      const requestId = message.requestId;
+      try {
+        if (!this._hass?.connection?.sendMessagePromise) throw new Error("DB bridge no disponible");
+        const command = String(message.command || "");
+        const allowed = /^(witmind_core\/(ping|db\/info|kv\/(get|set|delete|list)|doc\/(get|upsert|delete|list)))$/;
+        if (!allowed.test(command)) throw new Error("Comando DB no permitido");
+        const result = await this._hass.connection.sendMessagePromise({ type: command, ...message.payload });
+        this._post({ type: "WITMIND_DB_RESULT", requestId, ok: true, result });
+      } catch (error) {
+        this._post({ type: "WITMIND_DB_RESULT", requestId, ok: false, error: String(error?.message || error) });
+      }
+    }
+    async _handleHaCommand(message) {
+      const requestId = message.requestId;
+      try {
+        if (!this._hass?.connection?.sendMessagePromise) throw new Error("Conexión HA no disponible");
+        const type = String(message.command || "");
+        const allowed = ["weather/subscribe_forecast", "recorder/get_statistics_metadata", "recorder/statistics_during_period"];
+        if (!allowed.includes(type)) throw new Error("Comando HA no permitido");
+        const result = await this._hass.connection.sendMessagePromise({ type, ...(message.payload || {}) });
+        this._post({ type: "WITMIND_HA_RESULT", requestId, ok: true, result });
+      } catch (error) {
+        this._post({ type: "WITMIND_HA_RESULT", requestId, ok: false, error: String(error?.message || error) });
+      }
+    }
+  }
+
+  customElements.define("witmind-ui-panel", WitmindUiPanel);
+})();
