@@ -87,6 +87,7 @@
       // El tag propio del panel es la fuente de verdad si HA no conserva
       // `panel_kind` dentro de la configuración serializada.
       if (this.localName === "witmind-lobby-panel") merged.panel_kind = "lobby";
+      if (this.localName === "witmind-general-panel") merged.panel_kind = "general";
       return merged;
     }
     _storage(key) {
@@ -330,5 +331,8 @@
   }
   if (!customElements.get("witmind-lobby-panel")) {
     customElements.define("witmind-lobby-panel", WitmindUiPanel);
+  }
+  if (!customElements.get("witmind-general-panel")) {
+    customElements.define("witmind-general-panel", WitmindUiPanel);
   }
 })();

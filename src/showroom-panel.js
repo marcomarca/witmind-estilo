@@ -377,6 +377,18 @@ class ShowroomPanel extends HTMLElement {
       }
       return;
     }
+    if (action === "general-off") {
+      const script = this._config().generalOffScript;
+      if (script) {
+        this._hass.callService("script", "turn_on", { entity_id: script }).catch((error) => {
+          this._notify("No se pudo ejecutar Apagar todo Witmind.", "error");
+          console.error("Error ejecutando el apagado general de Witmind:", error);
+        });
+      } else {
+        this._notify("El apagado general aún no tiene una entidad configurada.", "error");
+      }
+      return;
+    }
     if (action === "cancel-power-confirm") {
       const inside = event.target.closest("[data-dialog-card]");
       if (target.classList.contains("dialog-backdrop") && inside) return;
@@ -455,12 +467,16 @@ class ShowroomPanel extends HTMLElement {
 
   _config() {
     const raw = this._panel?.config || {};
+    const preserveEmptyCollections =
+      raw.panel_kind === "lobby" || raw.panel_kind === "general" || raw.static_only === true || raw.staticOnly === true;
     const normalizeEntityIds = (items) => {
       if (!Array.isArray(items)) return [];
       return [...new Set(items.filter(Boolean).map((item) => String(item)))];
     };
     const normalizeDevices = (items, fallback) => {
-      const source = Array.isArray(items) && items.length ? items : fallback;
+      const source = Array.isArray(items)
+        ? (items.length || preserveEmptyCollections ? items : fallback)
+        : fallback;
       return source
         .filter((item) => item?.entity)
         .map((item, index) => ({
@@ -482,7 +498,9 @@ class ShowroomPanel extends HTMLElement {
       : defaultControlEntities;
 
     const normalizeScenes = (items, fallback, groupName) => {
-      const source = Array.isArray(items) && items.length ? items : fallback;
+      const source = Array.isArray(items)
+        ? (items.length || preserveEmptyCollections ? items : fallback)
+        : fallback;
       return source
         .filter((item) => item?.entity || item?.id || item?.key)
         .map((item, index) => {
@@ -558,6 +576,9 @@ class ShowroomPanel extends HTMLElement {
           : DEFAULT_SHOWROOM_CONFIG.chartHours,
       showForecast:
         raw.show_forecast ?? raw.showForecast ?? DEFAULT_SHOWROOM_CONFIG.showForecast,
+      panelKind: raw.panel_kind || raw.panelKind || "showroom",
+      staticOnly: raw.static_only ?? raw.staticOnly ?? false,
+      generalOffScript: raw.general_off_script || raw.generalOffScript || "",
       spots,
       samples,
       sceneControlEntities,
@@ -2081,7 +2102,48 @@ class ShowroomPanel extends HTMLElement {
     `;
   }
 
+  _renderGeneralStatic() {
+    return `
+      <section class="view-panel view-general" aria-label="Witmind General">
+        <section class="surface general-overview-card">
+          <div class="general-overview-copy">
+            <span class="section-kicker">Centro de control</span>
+            <h2>Witmind General</h2>
+            <p>Vista general del sistema. Los módulos de control se habilitarán progresivamente.</p>
+          </div>
+          <div class="general-overview-mark">W</div>
+        </section>
+        <div class="general-static-layout">
+          <section class="surface general-card static-actions-card">
+            <div class="section-heading compact-heading">
+              <div><span class="eyebrow">Accesos rápidos</span><h2>Operación</h2></div>
+            </div>
+            <button class="general-action power-off static-action" data-action="general-off" aria-label="Apagar todo Witmind">
+              <span>${this._icon("power")}</span>
+              <strong>Apagar todo Witmind</strong>
+              <small>Acción general pendiente de entidad</small>
+            </button>
+          </section>
+          ${this._renderWeather()}
+        </div>
+        <section class="surface general-status-card">
+          <div class="section-heading compact-heading">
+            <div><span class="eyebrow">Estado del sistema</span><h2>Preparado para ampliar</h2></div>
+            <span class="static-status-dot">En línea</span>
+          </div>
+          <div class="static-status-grid">
+            <div><small>Iluminación</small><strong>Configuración pendiente</strong></div>
+            <div><small>Energía</small><strong>Sin datos conectados</strong></div>
+            <div><small>Automatizaciones</small><strong>Próximamente</strong></div>
+          </div>
+        </section>
+      </section>
+    `;
+  }
+
   _renderActiveView(config) {
+    if (config.staticOnly || config.panelKind === "general") return this._renderGeneralStatic();
+
     if (this._activeView === "lights") {
       return `
         <section class="view-panel view-lights" aria-labelledby="lights-view-title">
@@ -2134,6 +2196,7 @@ class ShowroomPanel extends HTMLElement {
     this.setAttribute("data-theme", this._theme);
 
     const config = this._config();
+    const isGeneralPanel = config.staticOnly || config.panelKind === "general";
     const weather = this._state(config.weather);
     const weatherAttrs = weather?.attributes || {};
     const condition = weather?.state;
@@ -2443,6 +2506,25 @@ class ShowroomPanel extends HTMLElement {
         .general-card { grid-column: 1 / -1; padding: 18px; }
         .system-card { grid-column: span 4; padding: 18px; }
         .activity-card { grid-column: span 8; padding: 18px; }
+        .general-overview-card { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: clamp(22px, 3vw, 34px); background: radial-gradient(circle at 88% 18%, var(--primary-soft), transparent 38%), var(--surface); }
+        .general-overview-copy { min-width: 0; }
+        .general-overview-copy h2 { margin: 5px 0 0; font-size: clamp(24px, 3vw, 34px); font-weight: 800; letter-spacing: -0.04em; }
+        .general-overview-copy p { max-width: 560px; margin: 9px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
+        .general-overview-mark { width: 64px; height: 64px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid var(--primary-border); border-radius: 20px; background: var(--primary-soft); color: var(--primary); font-size: 28px; font-weight: 800; }
+        .general-static-layout { display: grid; grid-template-columns: minmax(260px, .8fr) minmax(360px, 1.2fr); gap: 14px; margin-top: 14px; }
+        .general-static-layout > .surface { min-height: 220px; padding: 20px; }
+        .static-actions-card { display: flex; flex-direction: column; }
+        .static-action { width: 100%; min-height: 92px; margin-top: auto; display: grid; grid-template-columns: 38px minmax(0, 1fr); justify-content: flex-start; text-align: left; cursor: pointer; }
+        .static-action strong, .static-action small { grid-column: 2; }
+        .static-action > span { grid-row: 1 / span 2; width: 38px; height: 38px; }
+        .static-action small { color: var(--text-tertiary); font-size: 9px; font-weight: 600; }
+        .general-status-card { margin-top: 14px; padding: 20px; }
+        .static-status-dot { padding: 5px 9px; border: 1px solid rgba(34,197,94,.28); border-radius: var(--radius-pill); color: var(--success); font-size: 9px; font-weight: 800; }
+        .static-status-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .static-status-grid > div { min-height: 66px; padding: 12px; border: 1px solid var(--border-default); border-radius: 14px; background: var(--surface-control); }
+        .static-status-grid small, .static-status-grid strong { display: block; }
+        .static-status-grid small { color: var(--text-tertiary); font-size: 9px; font-weight: 700; }
+        .static-status-grid strong { margin-top: 7px; font-size: 11px; font-weight: 700; }
 
         .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
         .compact-heading { margin-bottom: 12px; }
@@ -2943,7 +3025,7 @@ class ShowroomPanel extends HTMLElement {
           .status-pill small { display: none; }
           .view-navigation-button { padding: 0 12px; }
           .quick-scene-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-          .home-layout, .lighting-layout, .system-layout { grid-template-columns: 1fr; }
+          .home-layout, .lighting-layout, .system-layout, .general-static-layout { grid-template-columns: 1fr; }
           .reflector-section { grid-column: auto; }
         }
         @container showroom-panel (max-width: 860px) {
@@ -2961,7 +3043,9 @@ class ShowroomPanel extends HTMLElement {
           .view-navigation-button span { font-size: 9px; }
           .quick-scene-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
           .scene-heading-actions .scene-summary { display: none; }
-          .home-layout { grid-template-columns: 1fr; }
+          .home-layout, .general-static-layout { grid-template-columns: 1fr; }
+          .static-status-grid { grid-template-columns: 1fr; }
+          .general-overview-card { align-items: flex-start; }
           .lighting-layout .device-grid { grid-template-columns: 1fr; }
           .samples-section .device:last-child { grid-column: auto; }
           .system-layout > .surface { min-height: 0; }
@@ -2994,7 +3078,7 @@ class ShowroomPanel extends HTMLElement {
               <span>${this._escape(config.siteLabel)}</span>
             </div>
           </div>
-          <div class="status-strip" aria-label="Resumen del showroom">
+          ${isGeneralPanel ? "" : `<div class="status-strip" aria-label="Resumen del showroom">
             <button class="status-pill ${lightsOn ? "is-active" : ""}" data-action="set-view" data-view="lights">
               <span class="status-pill-icon">${this._icon("bulb")}</span>
               <span><strong>${lightsOn} de ${configuredLights.length}</strong><small>Luces</small></span>
@@ -3007,7 +3091,7 @@ class ShowroomPanel extends HTMLElement {
               <span class="status-pill-icon">${this._icon("energy")}</span>
               <span><strong>${this._escape(energyLabel)}</strong><small>Este mes</small></span>
             </button>
-          </div>
+          </div>`}
           <div class="topbar-meta">
             <time class="header-clock" data-current-time>
               <strong data-clock-time>--:--</strong>
@@ -3027,7 +3111,7 @@ class ShowroomPanel extends HTMLElement {
               <span class="section-kicker">${this._escape(config.subtitle)}</span>
               <h1>${this._escape(config.title)}</h1>
             </div>
-            ${this._renderNavigation()}
+            ${isGeneralPanel ? "" : this._renderNavigation()}
           </section>
           ${this._renderActiveView(config)}
         </main>
