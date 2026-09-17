@@ -56,6 +56,7 @@ class WitmindApp extends HTMLElement {
     window.addEventListener("message", this.messageHandler);
     this.shadowRoot!.innerHTML = `<style>:host{display:block;min-height:100dvh;background:var(--wit-surface,#071118)} showroom-panel{display:block;min-height:100dvh}</style><showroom-panel></showroom-panel>`;
     this.panel = this.shadowRoot!.querySelector("showroom-panel") as PanelElement;
+    this.panel.addEventListener("hass-toggle-menu", () => this.client?.toggleMenu());
     this.client = new PostMessageHaClient(window.parent);
     this.applyPanelConfig();
     this.subscribe(ENTITY_IDS);

@@ -11,6 +11,7 @@ export interface WitmindHaClient {
   subscribeEntities(entityIds: string[], listener: WitmindEntityListener): () => void;
   getEntity(entityId: string): WitmindEntity | undefined;
   callService(service: string, serviceData?: Record<string, unknown>, target?: Record<string, unknown>): Promise<unknown>;
+  toggleMenu(): void;
   dbRequest<T = unknown>(command: string, payload?: Record<string, unknown>): Promise<T>;
   haRequest<T = unknown>(command: string, payload?: Record<string, unknown>): Promise<T>;
   haSubscribe<T = unknown>(command: string, payload: Record<string, unknown>, listener: (event: T) => void): Promise<() => void>;
@@ -39,6 +40,7 @@ export class PostMessageHaClient implements WitmindHaClient {
   callService(service: string, serviceData = {}, target?: Record<string, unknown>) {
     return this.request("WITMIND_CALL_SERVICE", "WITMIND_SERVICE_RESULT", { service, serviceData, target });
   }
+  toggleMenu() { this.post({ type: "WITMIND_TOGGLE_MENU" }); }
   dbRequest<T>(command: string, payload = {}) { return this.request<T>("WITMIND_DB_REQUEST", "WITMIND_DB_RESULT", { command, payload }); }
   haRequest<T>(command: string, payload = {}) { return this.request<T>("WITMIND_HA_COMMAND", "WITMIND_HA_RESULT", { command, payload }); }
   haSubscribe<T>(command: string, payload: Record<string, unknown>, listener: (event: T) => void) {
@@ -103,6 +105,7 @@ export class MockHaClient implements WitmindHaClient {
   subscribeEntities(_entityIds: string[], listener: WitmindEntityListener) { this.listeners.add(listener); listener(this.states); return () => this.listeners.delete(listener); }
   getEntity(entityId: string) { return this.states[entityId]; }
   async callService(_service: string, _serviceData = {}, _target?: Record<string, unknown>) { return { ok: true, mock: true }; }
+  toggleMenu() {}
   async dbRequest<T = unknown>(_command: string, _payload = {}) { return {} as T; }
   async haRequest<T = unknown>(_command: string, _payload = {}) { return {} as T; }
   async haSubscribe<T = unknown>(_command: string, _payload: Record<string, unknown>, _listener: (event: T) => void) { return () => undefined; }

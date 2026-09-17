@@ -10,4 +10,4 @@ La guía completa para colaborar y migrar paneles antiguos está en [`docs/HOME_
 4. Fusiona `configuration.yaml.snippet.yaml` con la configuración existente sin duplicar `panel_custom:`.
 5. Reinicia Home Assistant y abre `Witmind Next` desde el sidebar.
 
-El bridge mantiene la interfaz estable y versiona la aplicación visual. `STABLE` usa `current.json`, `PREVIEW` carga una release explícita y `DEV` prueba el Vite del PC; si DEV no responde en 4 segundos, vuelve a STABLE. La release activa actual es `0.1.3` e incluye el panel paralelo `Witmind Lobby`.
+El bridge mantiene la interfaz estable y versiona la aplicación visual. `STABLE` usa `current.json`, `PREVIEW` carga una release explícita y `DEV` prueba el Vite del PC; si DEV no responde en 4 segundos, vuelve a STABLE. La release activa actual es `0.1.5` e incluye el panel paralelo `Witmind Lobby` con suscripción persistente al pronóstico de Home Assistant.
