@@ -2,10 +2,13 @@ import "./showroom-panel.js";
 import "./witmind-operations-panel.ts";
 import "./witmind-admin-panel.ts";
 import "./witmind-energy-panel.ts";
+import "./building-control-panel.ts";
 import "./witmind-workspace.ts";
 import { PostMessageHaClient, type WitmindEntity } from "./ha/WitmindHaClient.js";
+import { BUILDING_ENTITY_IDS } from "./building-config.js";
 
 const ENTITY_IDS = [
+  ...BUILDING_ENTITY_IDS,
   "weather.forecast_casa",
   "media_player.showroom_1",
   "sensor.showroom_luminarias_encendidas",
@@ -65,7 +68,7 @@ class WitmindApp extends HTMLElement {
   private states: Record<string, WitmindEntity> = {};
   private previousStates: Record<string, WitmindEntity> = {};
   private eventListeners = new Set<(event: unknown) => void>();
-  private panelConfig: Record<string, unknown> = {};
+  private panelConfig: Record<string, unknown> = { panel_id: "general", panel_kind: "general" };
   private user = { is_admin: false, name: "" };
   private panelConfigSignature = "";
   private appliedTheme = "";

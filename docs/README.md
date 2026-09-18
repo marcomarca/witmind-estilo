@@ -4,6 +4,7 @@
 
 | Documento | Propósito |
 |---|---|
+| 🏢 [**`PLAN_MAESTRO_CONTROL_EDIFICIO_BMS.md`**](file:///c:/dev/automatizacion-estilo/docs/PLAN_MAESTRO_CONTROL_EDIFICIO_BMS.md) | Contrato normativo de la vista Control de Edificio. Sus referencias visuales y planos están versionados en `docs/reference/building-bms/`. |
 | 📐 [**`WITMIND_VISUAL_CONTRACT.md`**](file:///c:/dev/automatizacion-estilo/docs/WITMIND_VISUAL_CONTRACT.md) | Contrato de diseño: medidas exactas, tipografía Manrope, colores Signature, tokens y reglas responsive. |
 | ⚡ [**`ESPECIFICACION_ENERGIA_CIRCUITOS.md`**](file:///c:/dev/automatizacion-estilo/docs/ESPECIFICACION_ENERGIA_CIRCUITOS.md) | Potencias nominales en Watts de todos los circuitos reales y fórmulas matemáticas de cálculo de energía y dimerización. |
 | 🔌 [**`HOME_ASSISTANT_PANEL_MIGRATION.md`**](file:///c:/dev/automatizacion-estilo/docs/HOME_ASSISTANT_PANEL_MIGRATION.md) | Arquitectura del bridge, protocolo postMessage, integración WebSocket y configuración de `panel_custom`. |

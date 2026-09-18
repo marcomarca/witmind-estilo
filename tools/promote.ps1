@@ -9,6 +9,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $releaseDir "index.html"))) { throw 
 $manifest = [ordered]@{ version = $Version; channel = "stable"; updated_at = [DateTime]::UtcNow.ToString("o") }
 $temp = Join-Path $Root "current.json.tmp"
 $json = $manifest | ConvertTo-Json
+[System.IO.File]::WriteAllText($temp, $json, [System.Text.UTF8Encoding]::new($false))
 Move-Item -LiteralPath $temp -Destination (Join-Path $Root "current.json") -Force
 
 $repoRoot = Split-Path -Parent $PSScriptRoot

@@ -20,11 +20,15 @@ if ($LASTEXITCODE -ne 0) { throw "Falló el build panel." }
 
 New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
 Copy-Item -LiteralPath (Join-Path $buildDir "witmind-ui.html") -Destination (Join-Path $releaseDir "index.html")
-Copy-Item -LiteralPath (Join-Path $buildDir "assets") -Destination $releaseDir -Recurse
+Get-ChildItem -LiteralPath $buildDir -Directory | ForEach-Object {
+  Copy-Item -LiteralPath $_.FullName -Destination $releaseDir -Recurse
+}
 
 $localReleaseDir = Join-Path $repoRoot "home-assistant\www\witmind-ui\releases\$Version"
 New-Item -ItemType Directory -Force -Path $localReleaseDir | Out-Null
 Copy-Item -LiteralPath (Join-Path $buildDir "witmind-ui.html") -Destination (Join-Path $localReleaseDir "index.html")
-Copy-Item -LiteralPath (Join-Path $buildDir "assets") -Destination $localReleaseDir -Recurse
+Get-ChildItem -LiteralPath $buildDir -Directory | ForEach-Object {
+  Copy-Item -LiteralPath $_.FullName -Destination $localReleaseDir -Recurse
+}
 
 Write-Host "Release $Version preparada en $releaseDir y sincronizada localmente en $localReleaseDir. Ejecuta promote.ps1 para cambiar current.json."

@@ -34,6 +34,8 @@ description: Registro histórico sintetizado y cronológico de fallas, regresion
 | `0.5.11` | `0.5.12` | [`src/witmind-workspace.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-workspace.ts) | Imposible deslizar en smartphone: nada se movía con el dedo. | Las tarjetas cubren el 95% de la pantalla a 389px y los botones estaban excluidos del gesto. |
 | `0.5.12` | `0.5.13` | [`src/witmind-workspace.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-workspace.ts) | Gesto táctil congelado a mitad de camino en app Android al recibir estados. | Android WebView cancela Pointer Events en iframes si un nodo hijo se actualiza. |
 | `0.5.13` | `0.5.14` | [`src/witmind-workspace.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-workspace.ts) | En Desktop con ratón, los clics en Iluminación, Energía y Sistema no funcionaban. | `setPointerCapture` en `pointerdown` capturaba el puntero y cancelaba el `click` en ratón. |
+| `0.6.0` | `0.6.1` | [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts), [`src/witmind-workspace.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-workspace.ts) | La interfaz parecía cambiar de tamaño al alternar entre Planta Baja y Planta Alta. | Cada planta tenía distinta cantidad de filas de circuitos; esto modificaba la altura del documento y la aparición de la barra vertical. |
+| `0.6.1` | `0.6.2` | [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts), [`src/building-config.ts`](file:///c:/dev/automatizacion-estilo/src/building-config.ts) | Circuitos por zona mostraba potencias incorrectas o no disponibles y el switch encendía indiscriminadamente una zona completa. | La potencia MQTT en kW se rotulaba como W, el medidor real del Lobby no estaba mapeado y el control no distinguía perfiles operativos de estados parciales. |
 
 ---
 
@@ -158,3 +160,33 @@ Antes de promover una release o dar por concluido un cambio, verificar:
 3. **Persistencia del DOM**: ¿El botón o interruptor conserva el foco y la posición de scroll al encenderse? No llames a `render()` en updates reactivos; usa `_updateStatePresentation()`.
 4. **Contrato de release**: ¿Ejecutaste `tools/release.ps1` y comprobaste que existe `releases/<version>/index.html` respondiendo `HTTP 200`?
 5. **Idempotencia del bridge**: ¿El bridge reacciona a cambios de panel sin recargar innecesariamente el iframe si los parámetros son idénticos?
+6. **Estabilidad entre plantas**: ¿Los contenedores del plano y de circuitos conservan dimensiones idénticas al cambiar de planta? Ejecuta `node tools/verify-building-floor-layout.mjs` con el servidor local activo.
+
+---
+
+### FALLA H: Salto de tamaño entre plantas del BMS (0.6.0 $\rightarrow$ 0.6.1)
+- **Rutas afectadas**: [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts) y [`src/witmind-workspace.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-workspace.ts).
+- **Síntoma real**: Al alternar entre Planta Baja y Planta Alta, el plano parecía cambiar de ancho y la página modificaba su longitud, aunque las dos imágenes estaban renderizadas con el mismo `object-fit: contain`.
+- **Causa raíz técnica**: Planta Baja renderizaba tres zonas y Planta Alta cinco. La tabla de circuitos crecía 86–100 px y podía hacer aparecer la barra de desplazamiento vertical, reduciendo adicionalmente el ancho útil.
+- **Solución implementada en `0.6.1`**:
+  1. Reservar una altura mínima estable para `.circuits-card` y `.circuit-table`, calculada para la planta con más zonas.
+  2. Usar `scrollbar-gutter: stable` solo en el panel general a partir de 821 px; en móvil se conserva todo el ancho disponible.
+  3. Añadir `tools/verify-building-floor-layout.mjs`, que compara las dimensiones de ambas plantas en 1440, 1024 y 390 px.
+- **Regla preventiva**: El tamaño visual de una planta no debe depender de cuántas entidades o filas tenga. Verificar igualdad geométrica en los tres anchos antes de publicar.
+
+---
+
+### FALLA I: Potencia y acciones de zona sin semántica operativa (0.6.1 $\rightarrow$ 0.6.2)
+- **Rutas afectadas**: [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts) y [`src/building-config.ts`](file:///c:/dev/automatizacion-estilo/src/building-config.ts).
+- **Síntoma real**: Showroom mostraba aproximadamente `1 W` pese a consumir más de 1 kW; Lobby mostraba “No disponible”; el switch de Showroom podía encender sus diez circuitos en lugar de aplicar Reunión.
+- **Causa raíz técnica**:
+  1. `sensor.showroom_potencia_activa` publica `kW`, pero la UI lo presentaba como `W` sin conversión.
+  2. `sensor.sensor_de_potencia_showroom_p`, registrado como medidor real del Lobby, no estaba incluido en el registro BMS.
+  3. El estado y la acción del switch se deducían con “algún circuito encendido” / “todos los circuitos”, sin un contrato de perfil.
+- **Solución implementada en `0.6.2`**:
+  1. Normalización estricta `kW/MW/W -> W`, rechazando unidades incompatibles.
+  2. Mapeo del medidor físico de Lobby y separación visual entre potencia medida y potencia nominal calculada por switches reales.
+  3. Perfiles declarativos: Reunión (2 ON + 8 OFF), Invitados (4 ON) y Grabación completa (4 ON), con apagado limitado a la zona.
+  4. Overlays por planta con circuitos, potencia y ambiente reales, sin mezclar plantas.
+  5. Verificación reproducible con `node tools/verify-building-live-overlays.mjs`.
+- **Regla preventiva**: Nunca presentar potencia sin normalizar `unit_of_measurement`, y nunca usar un interruptor agregado sin declarar su perfil exacto de entidades ON/OFF.

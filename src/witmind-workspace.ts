@@ -2,6 +2,7 @@ import "./showroom-panel.js";
 import "./witmind-operations-panel.ts";
 import "./witmind-admin-panel.ts";
 import "./witmind-energy-panel.ts";
+import "./building-control-panel.ts";
 import { resolvePointerReleaseCoordinate, resolveSwipeAxis, resolveSwipeDirection, type SwipeAxis } from "./swipe-gesture.js";
 
 type PanelConfig = Record<string, unknown>;
@@ -65,8 +66,8 @@ const LOBBY_CONFIG: PanelConfig = {
 const GENERAL_CONFIG: PanelConfig = {
   panel_kind: "general",
   static_only: false,
-  title: "Witmind General",
-  subtitle: "Centro de control",
+  title: "Control de Edificio",
+  subtitle: "Sistema de gestión y monitoreo",
   site_label: "WTX · MDTC",
   weather: "weather.forecast_casa",
   show_forecast: true,
@@ -156,7 +157,7 @@ const NOTIFICATIONS_CONFIG: PanelConfig = { panel_kind: "notifications", title: 
 const ENERGY_CONFIG: PanelConfig = { panel_kind: "energy", title: "Gestión de energía", subtitle: "Analítica del edificio", description: "Consumo, historial de uso y simulación de dimerización." };
 
 const PANEL_META = [
-  { id: "general", label: "General", icon: "⌂" },
+  { id: "general", label: "Edificio", icon: "⌂" },
   { id: "showroom", label: "Showroom", icon: "✦" },
   { id: "lobby", label: "Lobby", icon: "⌂" },
   { id: "offices", label: "Oficinas", icon: "▦" },
@@ -256,12 +257,14 @@ class WitmindWorkspace extends HTMLElement {
         .track { display:flex; width:100%; height:100%; min-height:0; touch-action:pan-y pinch-zoom; transition:transform 280ms cubic-bezier(.2,.8,.2,1); will-change:transform; }
         .track.is-dragging { transition:none; cursor:grabbing; }
         .page { flex:0 0 100%; width:100%; min-width:100%; height:100%; min-height:0; overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; background:var(--wit-canvas,#071118); contain:layout paint; }
+        @media (min-width:821px) { .page[data-panel-id="general"] { scrollbar-gutter:stable; } }
         .workspace-nav { position:fixed; z-index:80; left:50%; bottom:max(16px, env(safe-area-inset-bottom)); transform:translateX(-50%); display:flex; align-items:center; gap:6px; padding:5px; border:1px solid var(--wit-border-medium,rgba(255,255,255,.12)); border-radius:var(--wit-radius-pill,999px); background:var(--wit-surface-glass,rgba(7,17,24,.78)); box-shadow:var(--wit-shadow-dock,0 12px 32px rgba(0,0,0,.28)); backdrop-filter:blur(18px); }
         .workspace-nav button { width:var(--wit-touch-min,44px); height:var(--wit-touch-min,44px); display:grid; place-items:center; border:0; border-radius:var(--wit-radius-pill,999px); color:var(--wit-text-primary,#f5f6f4); background:transparent; cursor:pointer; font:inherit; }
         .workspace-nav button:hover:not(:disabled), .workspace-nav button:focus-visible { background:var(--wit-surface-interactive-hover,rgba(255,255,255,.1)); outline:2px solid var(--wit-accent,#f26522); outline-offset:1px; }
         .workspace-nav button:disabled { opacity:.35; cursor:not-allowed; }
         .workspace-nav .dot { width:9px; height:9px; padding:0; border:1px solid rgba(255,255,255,.5); background:transparent; }
         .workspace-nav .dot[aria-current="page"] { width:24px; border-color:var(--wit-accent,#f26522); background:var(--wit-accent,#f26522); }
+        .workspace-nav.is-hidden { display:none; }
         @media (prefers-reduced-motion:reduce) { .track { transition:none; } }
       </style>
       <div class="workspace" data-workspace>
@@ -337,7 +340,7 @@ class WitmindWorkspace extends HTMLElement {
 
   private _attachPanel(page: HTMLElement, definition: { id: string; config: PanelConfig }) {
     if (page.firstElementChild) return;
-    const tag = definition.id === "energy" ? "witmind-energy-panel" : ["offices", "recording", "control"].includes(definition.id) ? "witmind-operations-panel" : ["calendar", "notifications"].includes(definition.id) ? "witmind-admin-panel" : "showroom-panel";
+    const tag = definition.id === "general" ? "witmind-building-panel" : definition.id === "energy" ? "witmind-energy-panel" : ["offices", "recording", "control"].includes(definition.id) ? "witmind-operations-panel" : ["calendar", "notifications"].includes(definition.id) ? "witmind-admin-panel" : "showroom-panel";
     const panel = document.createElement(tag) as HTMLElement & { panel?: PanelConfig | { config: PanelConfig }; hass?: HassAdapter; narrow?: boolean; theme?: string };
     panel.panel = tag === "showroom-panel" ? { config: definition.config } : definition.config;
     panel.theme = this._theme;
@@ -355,6 +358,7 @@ class WitmindWorkspace extends HTMLElement {
     const nav = this.shadowRoot?.querySelector("[data-nav]");
     if (!nav) return;
     const index = this._activeIndex();
+    nav.classList.toggle("is-hidden", this._activeId === "general");
     nav.innerHTML = `
       <button type="button" data-direction="prev" aria-label="Panel anterior" ${index === 0 ? "disabled" : ""}>‹</button>
       ${PANEL_META.map((panel) => `<button type="button" class="dot" data-panel="${panel.id}" aria-label="Abrir ${panel.label}" aria-current="${panel.id === this._activeId ? "page" : "false"}"></button>`).join("")}
