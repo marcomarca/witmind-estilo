@@ -59,6 +59,7 @@ class WitmindOperationsPanel extends HTMLElement {
   set hass(value: HassLike | null) {
     this._hass = value;
     if (!this._started) this._started = true;
+    if (!this.isConnected) return;
     if (!this.shadowRoot?.querySelector(".operations-shell")) this._render();
     else this._updatePresentation();
   }
@@ -67,15 +68,16 @@ class WitmindOperationsPanel extends HTMLElement {
 
   set panel(value: OperationConfig) {
     this._panel = value && typeof value === "object" ? value : {};
-    this._render();
+    if (this.isConnected) this._render();
   }
 
   get panel() { return this._panel; }
 
-  set theme(value: string) { if (value === "dark" || value === "light") { this._theme = value; this.setAttribute("data-theme", value); this._saveTheme(); this._queueRender(); } }
+  set theme(value: string) { if (value === "dark" || value === "light") { const changed = this._theme !== value; this._theme = value; this.setAttribute("data-theme", value); this._saveTheme(); if (changed && this.isConnected) this._queueRender(); } }
   get theme() { return this._theme; }
 
   connectedCallback() {
+    this.setAttribute("data-theme", this._theme);
     if (this._hass) this._render();
   }
 

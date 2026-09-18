@@ -39,15 +39,18 @@ class WitmindAdminPanel extends HTMLElement {
 
   set hass(value: HassLike | null) {
     this._hass = value;
+    if (!this.isConnected) return;
     if (!this.shadowRoot?.querySelector(".admin-shell")) this._render();
     this._applyThemeStyles();
     if (value && !this._loaded) void this._load();
   }
   get hass() { return this._hass; }
-  set panel(value: AdminPanelConfig) { this._panel = value || {}; this._loaded = false; this._render(); this._applyThemeStyles(); if (this._hass) void this._load(); }
+  set panel(value: AdminPanelConfig) { this._panel = value || {}; this._loaded = false; if (this.isConnected) { this._render(); this._applyThemeStyles(); if (this._hass) void this._load(); } }
   get panel() { return this._panel; }
-  set theme(value: string) { if (value === "dark" || value === "light") { this._theme = value; this.setAttribute("data-theme", value); this._saveTheme(); this._render(); this._applyThemeStyles(); } }
+  set theme(value: string) { if (value === "dark" || value === "light") { const changed = this._theme !== value; this._theme = value; this.setAttribute("data-theme", value); this._saveTheme(); if (changed && this.isConnected) { this._render(); this._applyThemeStyles(); } } }
   get theme() { return this._theme; }
+
+  connectedCallback() { this.setAttribute("data-theme", this._theme); this._render(); this._applyThemeStyles(); if (this._hass && !this._loaded) void this._load(); }
 
   disconnectedCallback() { this._unsubscribe?.(); }
 

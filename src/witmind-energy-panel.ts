@@ -68,6 +68,7 @@ class WitmindEnergyPanel extends HTMLElement {
   set hass(value: HassLike | null) {
     const firstConnection = !this._hass?.connection?.sendMessagePromise && Boolean(value?.connection?.sendMessagePromise);
     this._hass = value;
+    if (!this.isConnected) return;
     if (!this.shadowRoot?.querySelector(".energy-panel")) this._render();
     else this._updateLiveMetrics();
     if (firstConnection || (!this._report && !this._loading && value?.connection?.sendMessagePromise)) void this._loadHistory();
@@ -77,17 +78,20 @@ class WitmindEnergyPanel extends HTMLElement {
   set panel(value: Record<string, unknown>) {
     this._panel = value || {};
     this._report = null;
-    this._render();
-    if (this._hass) void this._loadHistory();
+    if (this.isConnected) {
+      this._render();
+      if (this._hass) void this._loadHistory();
+    }
   }
   get panel() { return this._panel; }
 
   set theme(value: string) {
     if (value !== "dark" && value !== "light") return;
+    const changed = this._theme !== value;
     this._theme = value;
     this.setAttribute("data-theme", value);
     this._saveTheme();
-    this._render();
+    if (changed && this.isConnected) this._render();
   }
   get theme() { return this._theme; }
 

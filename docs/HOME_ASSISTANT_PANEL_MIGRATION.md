@@ -9,15 +9,18 @@ La instalación vigente en Home Assistant usa `Witmind Showroom` como entrada pr
 | Recurso | Ubicación actual |
 | --- | --- |
 | Panel bridge | `/config/www/witmind-ui-panel.js` |
+| Cache-bust activo del bridge | `?v=0.5.13` en las nueve entradas Witmind |
 | Aplicación estable | `/config/www/witmind-ui/current.json` |
-| Release activa | `0.5.7` |
-| Releases conservadas | Releases inmutables anteriores hasta `0.5.6` y la activa `0.5.7` |
+| Release activa | `0.5.13` |
+| Releases conservadas | Releases inmutables anteriores hasta `0.5.12` y la activa `0.5.13` |
 | Integración SQLite | `/config/custom_components/witmind_core/` |
 | Base de datos | `/config/witmind/witmind.db` |
 | Puerto DEV | `192.168.20.44:5174` |
 | Puerto 3D existente | `192.168.20.44:5173` — no tocar |
 
 La aplicación nueva no reemplaza todavía `witmind-panel`, `showroom-3d-panel`, `showroom-v2-panel` ni los demás paneles. Se migra uno por uno y cada versión se publica como una release inmutable.
+
+La entrada `Calendario laboral` usa el nombre exacto `witmind-calendario-laboral-panel`. Ese tag debe permanecer registrado en `witmind-ui-panel.js` y normalizarse a `panel_kind: calendar` y `panel_id: calendar`; cambiar uno sin el otro deja `/calendario-laboral` en blanco. Los cambios de `name`, `sidebar_title` o `module_url` bajo `panel_custom` requieren reiniciar Home Assistant.
 
 La release `0.1.3` añade el panel paralelo `Witmind Lobby`. Reutiliza la UI del showroom con `panel_kind: lobby`, las cuatro entidades reales del Lobby y las escenas `Visita`/`Regular`. Su energía usa temporalmente `sensor.showroom_energia_estimada`, que es la estimación global existente; no se inventan potencias para los circuitos del Lobby. Las releases `0.1.4`/`0.1.5` añaden el proxy persistente de `weather/subscribe_forecast`; la `0.1.6` conecta la hamburguesa visual con el evento oficial `hass-toggle-menu`; la `0.1.7` añade el alias del tag Lobby; la `0.1.8` conserva listas aisladas del Lobby y añade el modo estático `Witmind General`; la `0.1.9` actualiza controles y escenas sin reconstruir el Shadow DOM completo; la `0.1.10` consolida el parche de estado incremental para switches, escenas y el resumen de energía; la `0.2.0` incorpora el workspace con navegación horizontal entre paneles; la `0.2.1` endurece el gesto para ignorar controles anidados.
 

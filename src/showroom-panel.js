@@ -250,6 +250,8 @@ class ShowroomPanel extends HTMLElement {
 
     if (relevantChanged) this._syncStatesFromHass();
 
+    if (!this.isConnected) return;
+
     if (!this._started) {
       this._started = true;
       this._start();
@@ -307,6 +309,10 @@ class ShowroomPanel extends HTMLElement {
 
   connectedCallback() {
     if (this._hass) {
+      if (!this._started) {
+        this._started = true;
+        void this._start();
+      }
       this._updateStatePresentation();
       this._scheduleEnergyRefresh(true);
     }
@@ -3145,9 +3151,12 @@ class ShowroomPanel extends HTMLElement {
           .dashboard { padding: 16px 14px 88px; }
           .workspace-heading { display: grid; gap: 16px; align-items: stretch; }
           .workspace-heading > div { display: none; }
-          :host([data-panel-kind="showroom"]) .workspace-heading > div { display: block; }
-          :host([data-panel-kind="showroom"]) .workspace-heading { gap: 12px; margin-bottom: 18px; }
-          :host([data-panel-kind="showroom"]) .workspace-heading h1 { font-size: 26px; }
+          :host([data-panel-kind="showroom"]) .workspace-heading > div,
+          :host([data-panel-kind="lobby"]) .workspace-heading > div { display: block; }
+          :host([data-panel-kind="showroom"]) .workspace-heading,
+          :host([data-panel-kind="lobby"]) .workspace-heading { gap: 12px; margin-bottom: 18px; }
+          :host([data-panel-kind="showroom"]) .workspace-heading h1,
+          :host([data-panel-kind="lobby"]) .workspace-heading h1 { font-size: 26px; }
           .view-navigation { width: 100%; grid-template-columns: repeat(4, 1fr); border-radius: 18px; }
           .view-navigation-button { padding: 0 8px; gap: 5px; }
           .view-navigation-button span { font-size: 9px; }
@@ -3162,8 +3171,12 @@ class ShowroomPanel extends HTMLElement {
           .energy-current { min-width: 0; text-align: left; }
         }
         @container showroom-panel (max-width: 460px) {
-          .brand { display: none; }
+          .topbar-start { gap: 8px; }
+          .brand { display: grid; min-width: 0; }
+          .brand-wordmark { font-size: 15px; letter-spacing: .045em; }
           .topbar-meta { gap: 8px; }
+          .header-clock strong { font-size: 22px; }
+          .theme-button { width: 40px; height: 40px; flex-basis: 40px; }
           .quick-scene-grid { grid-template-columns: 1fr !important; }
           .view-navigation-button .icon { display: none; }
           .dialog-actions { grid-template-columns: 1fr; }

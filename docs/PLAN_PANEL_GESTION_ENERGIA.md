@@ -115,6 +115,12 @@ No se asignarán valores inventados al reflector ni al Lobby. Esos circuitos sí
 | 0.5.5 | ☑ | ☑ | ☑ | ☑ Promovido | ☑ 15/15 + 4 auditorías responsive | Cabeceras de Control y Notificaciones unificadas |
 | 0.5.6 | ☑ | ☑ | ☑ | ☑ Promovido | ☑ 15/15 + auditoría 758 px | Temperatura y humedad alineadas en las zonas de Oficinas |
 | 0.5.7 | ☑ | ☑ | ☑ | ☑ Promovido | ☑ 17/17 + navegador móvil | Gesto bidireccional estabilizado ante `pointerup` móvil con coordenadas cero |
+| 0.5.8 | ☑ | ☑ | ☑ | ☑ Promovido | ☑ 17/17 + bootstrap móvil | Inicialización única e idempotente desde cualquier entrada del sidebar |
+| 0.5.9 | ☑ | ☑ | ☑ | ☑ Promovido | ☑ 17/17 + contador de renders | Un solo render inicial y cero renders por INIT duplicado |
+| 0.5.10 | ☑ | ☑ | ☑ | ☑ Promovido | ☑ bridge + móvil + HTTP | Bridge idempotente y cache-bust uniforme para Android |
+| 0.5.11 | ☑ | ☑ | ☑ | ☑ Promovido | ☑ 17/17 + 389 px + HTTP | Marca y título de Lobby restaurados en smartphone |
+| 0.5.12 | ☑ | ☑ | ☑ | ☑ Promovido | ☑ 17/17 + touch real + HTTP | Gesto sobre tarjetas habilitado y acciones protegidas |
+| 0.5.13 | ☑ | ☑ | ☑ | ☑ Promovido | ☑ touch-only + rerender + resize + HTTP | Gesto móvil desacoplado de Pointer Events y renders hijos |
 
 ### Evidencia de despliegue
 
@@ -175,3 +181,69 @@ No se asignarán valores inventados al reflector ni al Lobby. Esos circuitos sí
 - Causa: ciertos navegadores Android/WebView entregan coordenadas cero en `pointerup`, sustituyendo la última posición real y pudiendo invertir el sentido calculado.
 - Solución: tacto y lápiz conservan la última muestra válida de `pointermove`; mouse mantiene la coordenada precisa de liberación. También se procesan las muestras coalescentes disponibles.
 - Verificación en navegador a 390 × 844 px: derecha→izquierda avanza y el gesto inverso retrocede aun con `pointerup` simulado en cero.
+- Backup: `\\192.168.20.232\config\backups\mobile-swipe-direction-0.5.7-20260918-111200`.
+
+### Inicialización móvil idempotente 0.5.8
+
+- Causa: el iframe montaba Showroom antes de conocer la ruta solicitada y después reconstruía el workspace por cada `WITMIND_INIT`; el bridge puede emitir INIT tanto en `load` como al recibir `WITMIND_READY`.
+- Solución: dentro de Home Assistant se conserva un fondo estable hasta recibir la configuración, el workspace nace directamente en el panel solicitado y los INIT con configuración idéntica no vuelven a montar ni a suscribir entidades.
+- Verificación a 390 × 844 px: cero workspaces antes de INIT, exactamente uno después de dos INIT consecutivos y la misma instancia después de un tercer INIT duplicado.
+- Herramienta reproducible: `node tools/verify-mobile-bootstrap.mjs` con Vite disponible en `127.0.0.1:5174`.
+- Backup: `\\192.168.20.232\config\backups\mobile-bootstrap-idempotent-0.5.8-20260918-112800`.
+
+### Render único en Home Assistant móvil 0.5.9
+
+- Los paneles reciben configuración, tema, modo estrecho y adaptador de Home Assistant antes de conectarse al DOM.
+- Oficinas, Grabación, Control, Energía, Calendario, Notificaciones, Showroom y Lobby evitan renderizar desde setters mientras todavía están desconectados.
+- El tema inicial se guarda antes de crear el workspace; aplicar nuevamente el mismo tema no produce trabajo visual.
+- Verificación a 390 × 844 px: un render inicial de Oficinas y cero renders adicionales tras INIT duplicados.
+- Backup: `\\192.168.20.232\config\backups\mobile-single-render-0.5.9-20260918-113200`.
+
+### Bridge móvil y caché Android 0.5.10
+
+- Causa raíz adicional: Home Assistant puede reasignar la misma propiedad `panel` durante cambios de layout estrecho; el bridge anterior recargaba el iframe en cada asignación. Además, las nueve entradas seguían usando `module_url ...?v=0.5.0`, permitiendo que distintos WebView Android conservaran generaciones distintas del bridge.
+- Solución: el bridge compara la configuración recibida, ignora reasignaciones idénticas, reutiliza el iframe para cambios reales y emite un solo INIT por documento.
+- Las nueve entradas `panel_custom` usan ahora `/local/witmind-ui-panel.js?v=0.5.10` para invalidar la caché del teléfono y la tablet de forma determinista.
+- Verificación: tres asignaciones idénticas producen una sola carga; un cambio real produce exactamente una segunda inicialización. Bridge, manifiesto, HTML, JavaScript y CSS responden HTTP 200.
+- Backup completo: `\\192.168.20.232\config\backups\mobile-bridge-cache-0.5.10-20260918-114500`.
+
+### Cabecera de Lobby en smartphone 0.5.11
+
+- Causa: el breakpoint de contenedor `≤760 px` ocultaba el bloque de título de todas las vistas salvo Showroom, mientras que a `≤460 px` también ocultaba la marca Witmind.
+- Solución: Lobby conserva su título operativo sobre la navegación y la marca se compacta, sin alterar las tarjetas, los controles ni el orden del workspace.
+- Verificación reproducible: `node tools/verify-lobby-mobile-layout.mjs`; a 389 × 844 px, en tema claro y oscuro, se validan marca, título `Lobby`, orden vertical y ausencia de desbordamiento horizontal.
+- Release: `\\192.168.20.232\config\www\witmind-ui\releases\0.5.11`.
+- HTTP: `current.json`, `index.html`, JavaScript y CSS responden `200`.
+- Backup del puntero anterior: `\\192.168.20.232\config\backups\lobby-mobile-389-0.5.11-20260918-115208\current.json`.
+
+### Gesto sobre tarjetas en smartphone 0.5.12
+
+- Causa raíz: el workspace descartaba todo gesto iniciado sobre `button` o `a`. A 389 px las tarjetas interactivas cubren casi toda la superficie visible, por lo que no quedaba una zona práctica desde la cual comenzar el desliz; en tablet sí había huecos libres.
+- Solución: botones y enlaces participan en el reconocimiento horizontal. Los controles con arrastre propio (`input`, `select`, campos de texto y `[data-no-swipe]`) siguen excluidos.
+- Seguridad: después de reconocer un arrastre horizontal se consume el `click` sintetizado por Android para impedir que el gesto ejecute una escena, active una luz o dispare otra acción.
+- Verificación reproducible: `node tools/verify-mobile-card-swipe.mjs`; usa eventos táctiles reales de Chromium a 389 × 844 px y exige Lobby→Oficinas, Oficinas→Lobby y cero llamadas de servicio.
+- Release: `\\192.168.20.232\config\www\witmind-ui\releases\0.5.12`.
+- HTTP: `current.json`, `index.html`, JavaScript y CSS responden `200`.
+- Backup del puntero anterior: `\\192.168.20.232\config\backups\mobile-card-swipe-0.5.12-20260918-115819\current.json`.
+
+### Conexión de Calendario laboral
+
+- Causa raíz: `configuration.yaml` declara `name: witmind-calendario-laboral-panel`, pero el bridge solo registraba los aliases `calendario-laboral-panel` y `witmind-calendario-panel`. Home Assistant no encontraba el custom element solicitado y dejaba la ruta `/calendario-laboral` en blanco antes de montar la aplicación.
+- Solución: registrar y normalizar el nombre exacto `witmind-calendario-laboral-panel` a `panel_kind: calendar` y `panel_id: calendar`.
+- Las nueve entradas Witmind usan `/local/witmind-ui-panel.js?v=0.5.13` para evitar mezclar el bridge anterior y el corregido en la caché de los clientes.
+- Verificación reproducible: `node tools/verify-panel-aliases.mjs`; valida todos los nombres activos y su panel de destino.
+- Verificación remota: bridge local/remoto con SHA-256 idéntico, nueve URLs actualizadas, alias presente tres veces y JavaScript HTTP `200`.
+- Backup: `\\192.168.20.232\config\backups\calendar-panel-alias-20260918-120702`.
+- Operación pendiente: reiniciar Home Assistant para que vuelva a registrar `panel_custom` con el nuevo `module_url`.
+
+### Gesto táctil resistente a rerender en smartphone 0.5.13
+
+- Las correcciones anteriores validaban Pointer Events de Chromium, pero no la ruta Touch Events que puede conservar Android WebView cuando cancela el puntero dentro de un iframe.
+- El dedo usa ahora `touchstart`, `touchmove`, `touchend` y `touchcancel`; los movimientos y finales se escuchan en `window`, que permanece estable aunque un panel hijo sustituya su Shadow DOM.
+- Mouse y lápiz conservan Pointer Events y capturan el puntero desde `pointerdown`, no después del primer movimiento.
+- Los eventos `resize` móviles ya no ejecutan `_snap()` mientras existe un contacto activo; el ajuste se realiza al terminar el gesto con el viewport vigente.
+- `node tools/verify-mobile-rerender-swipe.mjs` fuerza simultáneamente un render hijo, un INIT distinto y un cambio 389 × 844 → 389 × 843 durante el contacto, y exige llegar de Lobby a Oficinas.
+- `node tools/verify-mobile-card-swipe.mjs` valida ambos sentidos con eventos táctiles reales y cero llamadas de servicio accidentales.
+- Release: `\\192.168.20.232\config\www\witmind-ui\releases\0.5.13`.
+- HTTP: `current.json`, `index.html`, JavaScript y CSS responden `200`.
+- Backup del puntero anterior: `\\192.168.20.232\config\backups\mobile-touch-rerender-0.5.13-20260918-122643\current.json`.

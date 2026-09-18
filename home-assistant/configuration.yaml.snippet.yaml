@@ -6,7 +6,7 @@ panel_custom:
     sidebar_title: Witmind Showroom
     sidebar_icon: mdi:view-dashboard-variant
     url_path: witmind-next
-    module_url: /local/witmind-ui-panel.js?v=0.5.0
+    module_url: /local/witmind-ui-panel.js?v=0.5.13
     require_admin: false
     config:
       panel_id: showroom
@@ -19,7 +19,7 @@ panel_custom:
     url_path: witmind-lobby
     sidebar_title: Witmind Lobby
     sidebar_icon: mdi:door-open
-    module_url: /local/witmind-ui-panel.js?v=0.5.0
+    module_url: /local/witmind-ui-panel.js?v=0.5.13
     require_admin: false
     config:
       panel_kind: lobby
@@ -84,7 +84,7 @@ panel_custom:
     url_path: witmind-general
     sidebar_title: Witmind General
     sidebar_icon: mdi:home-automation
-    module_url: /local/witmind-ui-panel.js?v=0.5.0
+    module_url: /local/witmind-ui-panel.js?v=0.5.13
     require_admin: false
     config:
       panel_kind: general
@@ -106,7 +106,7 @@ panel_custom:
     url_path: oficinas-control
     sidebar_title: Oficinas
     sidebar_icon: mdi:office-building-outline
-    module_url: /local/witmind-ui-panel.js?v=0.5.0
+    module_url: /local/witmind-ui-panel.js?v=0.5.13
     require_admin: false
     config:
       panel_kind: offices
@@ -118,7 +118,7 @@ panel_custom:
     url_path: sala-grabacion
     sidebar_title: Sala de grabación
     sidebar_icon: mdi:record-rec
-    module_url: /local/witmind-ui-panel.js?v=0.5.0
+    module_url: /local/witmind-ui-panel.js?v=0.5.13
     require_admin: false
     config:
       panel_kind: recording
@@ -128,13 +128,14 @@ panel_custom:
 
   - name: witmind-calendario-laboral-panel
     url_path: calendario-laboral
-    sidebar_title: Días festivos
+    sidebar_title: Calendario laboral
     sidebar_icon: mdi:calendar-lock
-    module_url: /local/witmind-ui-panel.js?v=0.5.0
+    module_url: /local/witmind-ui-panel.js?v=0.5.13
     require_admin: false
     config:
       panel_kind: calendar
       panel_id: calendar
+      title: Calendario laboral
       app_base: /local/witmind-ui
       fallback_release: 0.5.0
 
@@ -142,7 +143,7 @@ panel_custom:
     url_path: notificaciones
     sidebar_title: Notificaciones Witmind
     sidebar_icon: mdi:bell-cog-outline
-    module_url: /local/witmind-ui-panel.js?v=0.5.0
+    module_url: /local/witmind-ui-panel.js?v=0.5.13
     require_admin: true
     config:
       panel_kind: notifications
@@ -154,7 +155,7 @@ panel_custom:
     url_path: control-general
     sidebar_title: Control general
     sidebar_icon: mdi:shield-home-outline
-    module_url: /local/witmind-ui-panel.js?v=0.5.0
+    module_url: /local/witmind-ui-panel.js?v=0.5.13
     require_admin: false
     config:
       panel_kind: control
@@ -166,7 +167,7 @@ panel_custom:
     url_path: witmind-energy
     sidebar_title: Gestión de energía
     sidebar_icon: mdi:chart-line
-    module_url: /local/witmind-ui-panel.js?v=0.5.0
+    module_url: /local/witmind-ui-panel.js?v=0.5.13
     require_admin: false
     config:
       panel_kind: energy

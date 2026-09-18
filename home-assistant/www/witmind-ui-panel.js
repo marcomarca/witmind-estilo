@@ -36,6 +36,9 @@
       this._subscriptions = new Map();
       this._readyTimer = null;
       this._loadRequestId = 0;
+      this._panelSignature = this._signature(this._panel);
+      this._frameUrl = "";
+      this._initSent = false;
       this._messageHandler = (event) => this._onMessage(event);
       this._render();
     }
@@ -57,7 +60,17 @@
     }
     get hass() { return this._hass; }
     set panel(value) {
-      this._panel = value || {};
+      const next = value || {};
+      const signature = this._signature(next);
+      if (signature === this._panelSignature) return;
+      this._panel = next;
+      this._panelSignature = signature;
+      if (!this.isConnected) return;
+      if (this._iframe && this._ready) {
+        this._initSent = false;
+        this._sendInit();
+        return;
+      }
       this._loadFrame();
     }
     get panel() { return this._panel; }
@@ -66,6 +79,10 @@
       this.toggleAttribute("narrow", this._narrow);
     }
     get narrow() { return this._narrow; }
+
+    _signature(value) {
+      try { return JSON.stringify(value || {}); } catch (_) { return String(value); }
+    }
 
     connectedCallback() {
       window.addEventListener("message", this._messageHandler);
@@ -77,6 +94,8 @@
       this._subscriptions.clear();
       window.clearTimeout(this._readyTimer);
       if (this._iframe) this._iframe.src = "about:blank";
+      this._frameUrl = "";
+      this._initSent = false;
     }
 
     _config() {
@@ -90,7 +109,7 @@
       if (["witmind-general-panel", "witmind-general"].includes(this.localName)) merged.panel_kind = "general";
       if (["oficinas-panel", "witmind-oficinas-panel"].includes(this.localName)) merged.panel_kind = "offices";
       if (["sala-grabacion-panel", "witmind-grabacion-panel"].includes(this.localName)) merged.panel_kind = "recording";
-      if (["calendario-laboral-panel", "witmind-calendario-panel"].includes(this.localName)) merged.panel_kind = "calendar";
+      if (["calendario-laboral-panel", "witmind-calendario-panel", "witmind-calendario-laboral-panel"].includes(this.localName)) merged.panel_kind = "calendar";
       if (["notifications-panel", "witmind-notifications-panel"].includes(this.localName)) merged.panel_kind = "notifications";
       if (["control-general-panel", "witmind-control-panel"].includes(this.localName)) merged.panel_kind = "control";
       if (["witmind-energy-panel", "witmind-energia-panel"].includes(this.localName)) merged.panel_kind = "energy";
@@ -98,7 +117,7 @@
       if (["witmind-general-panel", "witmind-general"].includes(this.localName)) merged.panel_id = "general";
       if (["oficinas-panel", "witmind-oficinas-panel"].includes(this.localName)) merged.panel_id = "offices";
       if (["sala-grabacion-panel", "witmind-grabacion-panel"].includes(this.localName)) merged.panel_id = "recording";
-      if (["calendario-laboral-panel", "witmind-calendario-panel"].includes(this.localName)) merged.panel_id = "calendar";
+      if (["calendario-laboral-panel", "witmind-calendario-panel", "witmind-calendario-laboral-panel"].includes(this.localName)) merged.panel_id = "calendar";
       if (["notifications-panel", "witmind-notifications-panel"].includes(this.localName)) merged.panel_id = "notifications";
       if (["control-general-panel", "witmind-control-panel"].includes(this.localName)) merged.panel_id = "control";
       if (["witmind-energy-panel", "witmind-energia-panel"].includes(this.localName)) merged.panel_id = "energy";
@@ -195,12 +214,16 @@
       }
       this._iframe.dataset.allowFallback = allowFallback ? "1" : "0";
       this._iframe.dataset.targetOrigin = asOrigin(url);
+      this._frameUrl = url;
+      this._initSent = false;
       this._iframe.src = url;
       if (allowFallback) window.setTimeout(() => {
         if (!this._ready && this._iframe?.dataset.allowFallback === "1") {
           this._iframe.dataset.allowFallback = "0";
           this._mode = "STABLE";
           this._setStatus("DEV no disponible; usando STABLE.");
+          this._frameUrl = this._stableUrl;
+          this._initSent = false;
           this._iframe.src = this._stableUrl;
         }
       }, DEV_TIMEOUT_MS);
@@ -214,6 +237,8 @@
       this._iframe.contentWindow.postMessage({ protocol: PROTOCOL, source: "witmind-ha", ...message }, this._iframe.dataset.targetOrigin || "*");
     }
     _sendInit() {
+      if (this._initSent) return;
+      this._initSent = true;
       this._post({ type: "WITMIND_INIT", mode: this._mode, narrow: this._narrow, theme: this._hass?.selectedTheme || null, user: { is_admin: Boolean(this._hass?.user?.is_admin), name: this._hass?.user?.name || "" }, panelConfig: this._config() });
       this._sendEntitySnapshot();
     }
@@ -357,7 +382,7 @@
     "witmind-general-panel", "witmind-general",
     "oficinas-panel", "witmind-oficinas-panel",
     "sala-grabacion-panel", "witmind-grabacion-panel",
-    "calendario-laboral-panel", "witmind-calendario-panel",
+    "calendario-laboral-panel", "witmind-calendario-panel", "witmind-calendario-laboral-panel",
     "notifications-panel", "witmind-notifications-panel",
     "control-general-panel", "witmind-control-panel",
     "witmind-energy-panel", "witmind-energia-panel",

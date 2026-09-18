@@ -67,16 +67,32 @@ class WitmindApp extends HTMLElement {
   private eventListeners = new Set<(event: unknown) => void>();
   private panelConfig: Record<string, unknown> = {};
   private user = { is_admin: false, name: "" };
+  private panelConfigSignature = "";
+  private appliedTheme = "";
+  private pendingNarrow = false;
   private messageHandler = (event: MessageEvent) => {
     if (event.source !== window.parent || event.data?.protocol !== 1 || event.data?.source !== "witmind-ha") return;
     if (event.data.type === "WITMIND_INIT" && event.data.panelConfig) {
-      this.panelConfig = event.data.panelConfig as Record<string, unknown>;
+      const nextConfig = event.data.panelConfig as Record<string, unknown>;
+      const nextSignature = JSON.stringify(nextConfig);
+      const configChanged = nextSignature !== this.panelConfigSignature;
+      const initialTheme = event.data.theme;
+      if (!this.panel && (initialTheme === "light" || initialTheme === "dark")) {
+        this.appliedTheme = initialTheme;
+        try { localStorage.setItem("witmind-showroom-panel-theme", initialTheme); } catch (_) { /* storage optional */ }
+      }
+      this.panelConfig = nextConfig;
+      this.panelConfigSignature = nextSignature;
       this.user = { is_admin: Boolean(event.data.user?.is_admin), name: String(event.data.user?.name || "") };
-      this.applyPanelConfig();
-      this.resubscribeWithConfig();
+      this.pendingNarrow = Boolean(event.data.narrow);
+      const created = this.ensurePanel();
+      if (!created && configChanged) this.applyPanelConfig();
+      if (this.panel) this.panel.narrow = this.pendingNarrow;
+      if (created || configChanged) this.resubscribeWithConfig();
     }
     const theme = event.data.theme;
-    if ((theme === "light" || theme === "dark") && this.panel) {
+    if ((theme === "light" || theme === "dark") && this.panel && theme !== this.appliedTheme) {
+      this.appliedTheme = theme;
       this.panel.setAttribute("data-theme", theme);
       this.panel.dispatchEvent(new CustomEvent("witmind-theme-change", { detail: { theme }, bubbles: true, composed: true }));
     }
@@ -85,13 +101,27 @@ class WitmindApp extends HTMLElement {
   connectedCallback() {
     this.attachShadow({ mode: "open" });
     window.addEventListener("message", this.messageHandler);
-    this.shadowRoot!.innerHTML = `<style>:host{display:block;min-height:100dvh;background:var(--wit-surface,#071118)} witmind-workspace{display:block;min-height:100dvh}</style><witmind-workspace></witmind-workspace>`;
-    this.panel = this.shadowRoot!.querySelector("witmind-workspace") as PanelElement;
-    this.panel.addEventListener("hass-toggle-menu", () => this.client?.toggleMenu());
+    this.shadowRoot!.innerHTML = `<style>:host{display:block;min-height:100dvh;background:var(--wit-surface,#071118)}.boot{min-height:100dvh;background:var(--wit-surface,#071118)}witmind-workspace{display:block;min-height:100dvh}</style><div class="boot" aria-label="Cargando panel Witmind"></div>`;
     this.client = new PostMessageHaClient(window.parent);
-    this.applyPanelConfig();
-    this.subscribe(ENTITY_IDS);
-    this.panel.hass = this.createHassAdapter();
+    // In Home Assistant the parent INIT is the source of truth. Waiting for it
+    // avoids mounting Showroom first and replacing it with the requested panel.
+    if (window.parent === window) {
+      this.panelConfigSignature = JSON.stringify(this.panelConfig);
+      this.ensurePanel();
+      this.subscribe(ENTITY_IDS);
+    }
+  }
+
+  private ensurePanel() {
+    if (this.panel) return false;
+    const panel = document.createElement("witmind-workspace") as PanelElement;
+    panel.config = this.panelConfig;
+    panel.narrow = this.pendingNarrow;
+    panel.hass = this.createHassAdapter();
+    panel.addEventListener("hass-toggle-menu", () => this.client?.toggleMenu());
+    this.panel = panel;
+    this.shadowRoot!.querySelector(".boot")?.replaceWith(panel);
+    return true;
   }
 
   private subscribe(entityIds: string[]) {

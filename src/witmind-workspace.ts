@@ -6,6 +6,7 @@ import { resolvePointerReleaseCoordinate, resolveSwipeAxis, resolveSwipeDirectio
 
 type PanelConfig = Record<string, unknown>;
 type HassAdapter = Record<string, unknown>;
+type DragState = { pointerId: number; pointerType: string; startX: number; startY: number; lastX: number; lastY: number; time: number; ignored: boolean; axis: SwipeAxis };
 
 const LOBBY_CONFIG: PanelConfig = {
   panel_kind: "lobby",
@@ -182,10 +183,18 @@ class WitmindWorkspace extends HTMLElement {
   private _activeId = "showroom";
   private _pages: HTMLElement[] = [];
   private _track: HTMLElement | null = null;
-  private _drag: { pointerId: number; pointerType: string; startX: number; startY: number; lastX: number; lastY: number; time: number; ignored: boolean; axis: SwipeAxis } | null = null;
+  private _drag: DragState | null = null;
+  private _touchDrag: DragState | null = null;
   private _dragging = false;
+  private _suppressClickUntil = 0;
   private _theme: "dark" | "light" = this._loadTheme();
-  private _boundResize = () => this._snap(false);
+  private _boundResize = () => {
+    if (this._drag || this._touchDrag) return;
+    this._snap(false);
+  };
+  private _boundTouchMove = (event: TouchEvent) => this._onTouchMove(event);
+  private _boundTouchEnd = (event: TouchEvent) => this._onTouchEnd(event);
+  private _boundTouchCancel = (event: TouchEvent) => this._onTouchEnd(event);
   private _boundTheme = (event: Event) => {
     const theme = (event as CustomEvent<{ theme?: string }>).detail?.theme;
     if (theme === "dark" || theme === "light") this._setTheme(theme);
@@ -225,11 +234,17 @@ class WitmindWorkspace extends HTMLElement {
     this._renderShell();
     this._mountPages();
     window.addEventListener("resize", this._boundResize, { passive: true });
+    window.addEventListener("touchmove", this._boundTouchMove, { passive: false });
+    window.addEventListener("touchend", this._boundTouchEnd, { passive: true });
+    window.addEventListener("touchcancel", this._boundTouchCancel, { passive: true });
     this.addEventListener("witmind-theme-change", this._boundTheme as EventListener);
   }
 
   disconnectedCallback() {
     window.removeEventListener("resize", this._boundResize);
+    window.removeEventListener("touchmove", this._boundTouchMove);
+    window.removeEventListener("touchend", this._boundTouchEnd);
+    window.removeEventListener("touchcancel", this._boundTouchCancel);
     this.removeEventListener("witmind-theme-change", this._boundTheme as EventListener);
   }
 
@@ -260,6 +275,8 @@ class WitmindWorkspace extends HTMLElement {
     track.addEventListener("pointermove", (event) => this._onPointerMove(event));
     track.addEventListener("pointerup", (event) => this._onPointerUp(event));
     track.addEventListener("pointercancel", (event) => this._onPointerUp(event));
+    track.addEventListener("touchstart", (event) => this._onTouchStart(event), { passive: true });
+    track.addEventListener("click", (event) => this._onTrackClick(event), true);
     this.shadowRoot!.querySelector("[data-nav]")?.addEventListener("click", (event) => this._onNavClick(event));
   }
 
@@ -353,11 +370,10 @@ class WitmindWorkspace extends HTMLElement {
   }
 
   private _onPointerDown(event: PointerEvent) {
-    if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
-    const target = event.target as HTMLElement;
-    const ignored = event.composedPath().some((node) =>
-      node instanceof HTMLElement && Boolean(node.closest("button,a,input,textarea,select,[data-no-swipe]")),
-    ) || Boolean(target.closest("button,a,input,textarea,select,[data-no-swipe]"));
+    // Touch Events are the canonical path for fingers. Some Android WebViews
+    // cancel Pointer Events inside an iframe when its contents rerender.
+    if (event.pointerType === "touch" || !event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
+    const ignored = this._isSwipeIgnored(event);
     this._drag = {
       pointerId: event.pointerId,
       pointerType: event.pointerType,
@@ -370,6 +386,7 @@ class WitmindWorkspace extends HTMLElement {
       axis: "pending",
     };
     this._dragging = false;
+    if (!ignored) (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
   }
 
   private _onPointerMove(event: PointerEvent) {
@@ -384,7 +401,6 @@ class WitmindWorkspace extends HTMLElement {
     if (this._drag.axis !== "horizontal") return;
     if (!this._dragging) {
       this._dragging = true;
-      (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
     }
     this._track.classList.add("is-dragging");
     this._track.style.transform = `translate3d(calc(${this._activeIndex() * -100}% + ${dx}px), 0, 0)`;
@@ -402,13 +418,89 @@ class WitmindWorkspace extends HTMLElement {
     const dx = drag.lastX - drag.startX;
     const elapsed = Math.max(1, performance.now() - this._drag.time);
     const direction = resolveSwipeDirection({ axis: drag.axis, cancelled, dx, elapsedMs: elapsed });
+    const wasHorizontalDrag = this._dragging && drag.axis === "horizontal";
     const target = event.currentTarget as HTMLElement;
     if (target.hasPointerCapture?.(event.pointerId)) target.releasePointerCapture?.(event.pointerId);
     this._track?.classList.remove("is-dragging");
     this._drag = null;
     this._dragging = false;
+    // El click sintetizado por Android llega después de pointerup. Si el dedo
+    // estaba arrastrando, se consume para no activar la tarjeta subyacente.
+    if (wasHorizontalDrag) this._suppressClickUntil = performance.now() + 500;
     if (direction) this._goTo(this._activeIndex() + direction);
     else this._snap(true);
+  }
+
+  private _isSwipeIgnored(event: Event) {
+    const ignoredSelector = "input,textarea,select,[data-no-swipe]";
+    const target = event.target;
+    return event.composedPath().some((node) =>
+      node instanceof HTMLElement && Boolean(node.closest(ignoredSelector)),
+    ) || (target instanceof HTMLElement && Boolean(target.closest(ignoredSelector)));
+  }
+
+  private _onTouchStart(event: TouchEvent) {
+    if (event.touches.length !== 1 || this._drag) return;
+    const touch = event.changedTouches[0] || event.touches[0];
+    if (!touch) return;
+    const ignored = this._isSwipeIgnored(event);
+    this._touchDrag = {
+      pointerId: touch.identifier,
+      pointerType: "touch",
+      startX: touch.clientX,
+      startY: touch.clientY,
+      lastX: touch.clientX,
+      lastY: touch.clientY,
+      time: performance.now(),
+      ignored,
+      axis: "pending",
+    };
+    this._dragging = false;
+  }
+
+  private _onTouchMove(event: TouchEvent) {
+    const drag = this._touchDrag;
+    if (!drag || drag.ignored || !this._track) return;
+    const touch = Array.from(event.touches).find((item) => item.identifier === drag.pointerId);
+    if (!touch) return;
+    drag.lastX = touch.clientX;
+    drag.lastY = touch.clientY;
+    const dx = drag.lastX - drag.startX;
+    const dy = drag.lastY - drag.startY;
+    if (drag.axis === "pending") drag.axis = resolveSwipeAxis(dx, dy);
+    if (drag.axis !== "horizontal") return;
+    this._dragging = true;
+    this._track.classList.add("is-dragging");
+    this._track.style.transform = `translate3d(calc(${this._activeIndex() * -100}% + ${dx}px), 0, 0)`;
+    event.preventDefault();
+  }
+
+  private _onTouchEnd(event: TouchEvent) {
+    const drag = this._touchDrag;
+    if (!drag) return;
+    const cancelled = event.type === "touchcancel";
+    const touch = Array.from(event.changedTouches).find((item) => item.identifier === drag.pointerId);
+    if (!cancelled && touch) {
+      drag.lastX = touch.clientX;
+      drag.lastY = touch.clientY;
+    }
+    const dx = drag.lastX - drag.startX;
+    const elapsed = Math.max(1, performance.now() - drag.time);
+    const direction = resolveSwipeDirection({ axis: drag.axis, cancelled, dx, elapsedMs: elapsed });
+    const wasHorizontalDrag = this._dragging && drag.axis === "horizontal";
+    this._track?.classList.remove("is-dragging");
+    this._touchDrag = null;
+    this._dragging = false;
+    if (wasHorizontalDrag) this._suppressClickUntil = performance.now() + 500;
+    if (direction) this._goTo(this._activeIndex() + direction);
+    else this._snap(true);
+  }
+
+  private _onTrackClick(event: MouseEvent) {
+    if (performance.now() > this._suppressClickUntil) return;
+    this._suppressClickUntil = 0;
+    event.preventDefault();
+    event.stopImmediatePropagation();
   }
 
   private _goTo(target: number | string) {
@@ -441,6 +533,7 @@ class WitmindWorkspace extends HTMLElement {
   }
 
   private _setTheme(theme: "dark" | "light") {
+    if (this._theme === theme) return;
     this._theme = theme;
     try { localStorage.setItem("witmind-showroom-panel-theme", theme); } catch (_) { /* storage optional */ }
     this._pages.forEach((page) => { const panel = page.firstElementChild as (HTMLElement & { theme?: string }) | null; if (panel) { panel.setAttribute("data-theme", theme); panel.theme = theme; } });
