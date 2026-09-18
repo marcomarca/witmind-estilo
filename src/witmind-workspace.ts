@@ -386,7 +386,6 @@ class WitmindWorkspace extends HTMLElement {
       axis: "pending",
     };
     this._dragging = false;
-    if (!ignored) (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
   }
 
   private _onPointerMove(event: PointerEvent) {
@@ -401,6 +400,7 @@ class WitmindWorkspace extends HTMLElement {
     if (this._drag.axis !== "horizontal") return;
     if (!this._dragging) {
       this._dragging = true;
+      (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
     }
     this._track.classList.add("is-dragging");
     this._track.style.transform = `translate3d(calc(${this._activeIndex() * -100}% + ${dx}px), 0, 0)`;
