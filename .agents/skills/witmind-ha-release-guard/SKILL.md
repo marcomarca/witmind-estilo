@@ -26,6 +26,7 @@ Preserve the deployment contract between the Home Assistant bridge and the isola
 6. Back up the current `current.json` under `/config/backups/<descriptive-name>/current.json`.
 7. Promote with `tools/promote.ps1 -Version <version>`.
 8. Fetch `current.json` with a cache-busting query, resolve the version it names, and repeat the entry-plus-assets HTTP check through that stable path.
+9. If this release fixes a bug, regression, or introduces a stability/gesture improvement, append the entry to `.agents/skills/witmind-failure-history/SKILL.md` following its technical structure.
 
 If any check fails, stop before promotion. If failure is discovered after promotion, promote the last verified release; a Home Assistant restart is not required for a pointer rollback.
 
