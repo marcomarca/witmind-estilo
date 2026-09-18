@@ -1,4 +1,8 @@
 import "./showroom-panel.js";
+import "./witmind-operations-panel.ts";
+import "./witmind-admin-panel.ts";
+import "./witmind-energy-panel.ts";
+import "./witmind-workspace.ts";
 import { PostMessageHaClient, type WitmindEntity } from "./ha/WitmindHaClient.js";
 
 const ENTITY_IDS = [
@@ -17,10 +21,32 @@ const ENTITY_IDS = [
   "switch.interruptor_inteligente_2_switch_4",
   "switch.smart_relay_switch_3_switch",
   "switch.smart_relay_switch_4_switch",
+  "switch.interruptor_inteligente_3_switch_1",
+  "switch.interruptor_inteligente_3_switch_2",
+  "switch.interruptor_inteligente_3_switch_3",
+  "switch.interruptor_inteligente_3_switch_4",
   "scene.presentacion",
   "scene.reunion",
+  "scene.visita",
+  "scene.regular",
   "script.showroom_encendido_general",
   "script.showroom_apagado_general",
+  "script.apagado_total_witmind",
+  "switch.oficina_gerencial_interruptor_1",
+  "switch.oficina_mindtec_interruptor_1",
+  "switch.oficina_grande_interruptor_1",
+  "switch.oficina_grande_interruptor_2",
+  "switch.b2_gang_interruptor_1",
+  "switch.b2_gang_interruptor_2",
+  "switch.taller_interruptor_1",
+  "sensor.t_h_sensor_temperature",
+  "sensor.t_h_sensor_humidity",
+  "sensor.t_h_sensor_2_temperature",
+  "sensor.t_h_sensor_2_humidity",
+  "switch.4gang_switch_sala_grabacion_interruptor_1",
+  "switch.4gang_switch_sala_grabacion_interruptor_2",
+  "switch.4gang_switch_sala_grabacion_interruptor_3",
+  "switch.4gang_switch_sala_grabacion_interruptor_4",
 ];
 
 const collectEntityIds = (value: unknown, result = new Set<string>()) => {
@@ -30,7 +56,7 @@ const collectEntityIds = (value: unknown, result = new Set<string>()) => {
   return [...result];
 };
 
-type PanelElement = HTMLElement & { hass?: Record<string, unknown>; panel?: Record<string, unknown>; narrow?: boolean };
+type PanelElement = HTMLElement & { hass?: Record<string, unknown>; config?: Record<string, unknown>; narrow?: boolean };
 
 class WitmindApp extends HTMLElement {
   private client?: PostMessageHaClient;
@@ -40,22 +66,27 @@ class WitmindApp extends HTMLElement {
   private previousStates: Record<string, WitmindEntity> = {};
   private eventListeners = new Set<(event: unknown) => void>();
   private panelConfig: Record<string, unknown> = {};
+  private user = { is_admin: false, name: "" };
   private messageHandler = (event: MessageEvent) => {
     if (event.source !== window.parent || event.data?.protocol !== 1 || event.data?.source !== "witmind-ha") return;
     if (event.data.type === "WITMIND_INIT" && event.data.panelConfig) {
       this.panelConfig = event.data.panelConfig as Record<string, unknown>;
+      this.user = { is_admin: Boolean(event.data.user?.is_admin), name: String(event.data.user?.name || "") };
       this.applyPanelConfig();
       this.resubscribeWithConfig();
     }
     const theme = event.data.theme;
-    if ((theme === "light" || theme === "dark") && this.panel) this.panel.setAttribute("theme", theme);
+    if ((theme === "light" || theme === "dark") && this.panel) {
+      this.panel.setAttribute("data-theme", theme);
+      this.panel.dispatchEvent(new CustomEvent("witmind-theme-change", { detail: { theme }, bubbles: true, composed: true }));
+    }
   };
 
   connectedCallback() {
     this.attachShadow({ mode: "open" });
     window.addEventListener("message", this.messageHandler);
-    this.shadowRoot!.innerHTML = `<style>:host{display:block;min-height:100dvh;background:var(--wit-surface,#071118)} showroom-panel{display:block;min-height:100dvh}</style><showroom-panel></showroom-panel>`;
-    this.panel = this.shadowRoot!.querySelector("showroom-panel") as PanelElement;
+    this.shadowRoot!.innerHTML = `<style>:host{display:block;min-height:100dvh;background:var(--wit-surface,#071118)} witmind-workspace{display:block;min-height:100dvh}</style><witmind-workspace></witmind-workspace>`;
+    this.panel = this.shadowRoot!.querySelector("witmind-workspace") as PanelElement;
     this.panel.addEventListener("hass-toggle-menu", () => this.client?.toggleMenu());
     this.client = new PostMessageHaClient(window.parent);
     this.applyPanelConfig();
@@ -74,52 +105,16 @@ class WitmindApp extends HTMLElement {
   }
 
   private resubscribeWithConfig() {
-    const panelKind = String(this.panelConfig.panel_kind || this.panelConfig.panelKind || "").toLowerCase();
-    const baseEntityIds = ["weather.forecast_casa"];
-    const entityIds = panelKind === "lobby" || panelKind === "general"
-      ? [...new Set([...baseEntityIds, ...collectEntityIds(this.panelConfig)])]
-      : [...new Set([...ENTITY_IDS, ...collectEntityIds(this.panelConfig)])];
+    // El workspace conserva las tres vistas montadas para que el gesto sea
+    // instantáneo; por eso suscribimos la unión de entidades de las vistas
+    // conocidas y cualquier entidad declarada por paneles futuros.
+    const entityIds = [...new Set([...ENTITY_IDS, ...collectEntityIds(this.panelConfig)])];
     this.subscribe(entityIds);
   }
 
   private applyPanelConfig() {
     if (!this.panel) return;
-    const raw = this.panelConfig;
-    const panelKind = String(raw.panel_kind || raw.panelKind || "").toLowerCase();
-    if (panelKind !== "lobby" && panelKind !== "general") return;
-    const isGeneral = panelKind === "general";
-    const devices = Array.isArray(raw.devices) ? raw.devices : [];
-    const scenes = Array.isArray(raw.scenes) ? raw.scenes : [];
-    this.panel.panel = {
-      config: {
-        panel_kind: panelKind,
-        static_only: isGeneral || raw.static_only === true || raw.staticOnly === true,
-        title: raw.title || (isGeneral ? "Witmind General" : "Lobby"),
-        subtitle: raw.subtitle || (isGeneral ? "Centro de control" : "Control operativo"),
-        site_label: raw.site_label || raw.siteLabel || "WTX · MDTC",
-        logo: raw.logo || "/local/logo-witmind.png?v=2.0.0",
-        weather: raw.weather || "weather.forecast_casa",
-        light_count_sensor: isGeneral ? "" : raw.light_count_sensor || "sensor.lobby_luminarias_encendidas",
-        energy_sensor: isGeneral ? "" : raw.energy_sensor || "sensor.showroom_energia_estimada",
-        history_hours: raw.history_hours || 4,
-        chart_hours: raw.chart_hours || 24,
-        show_forecast: raw.show_forecast ?? true,
-        spots: isGeneral ? [] : devices,
-        samples: [],
-        reflector: { entity: "" },
-        scene_control_entities: isGeneral ? [] : raw.scene_control_entities || raw.sceneControlEntities || devices.map((item: any) => item.entity),
-        scenes: isGeneral ? [] : scenes.map((scene: any) => ({
-          ...scene,
-          onEntities: scene.on_entities || scene.onEntities || [],
-          offEntities: scene.off_entities || scene.offEntities || [],
-          directOnly: true,
-        })),
-        sample_scenes: [],
-        power_on_script: "",
-        power_off_script: "",
-        general_off_script: raw.general_off_script || raw.generalOffScript || "",
-      },
-    };
+    this.panel.config = this.panelConfig;
   }
 
   disconnectedCallback() {
@@ -133,6 +128,7 @@ class WitmindApp extends HTMLElement {
     return {
       states,
       language: "es",
+      user: this.user,
       selectedTheme: null,
       callService: (domain: string, service: string, serviceData: Record<string, unknown> = {}, target?: Record<string, unknown>) =>
         client.callService(`${domain}.${service}`, serviceData, target),

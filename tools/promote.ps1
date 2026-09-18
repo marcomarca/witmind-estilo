@@ -8,6 +8,7 @@ $releaseDir = Join-Path (Join-Path $Root "releases") $Version
 if (-not (Test-Path -LiteralPath (Join-Path $releaseDir "index.html"))) { throw "No existe una release completa para $Version." }
 $manifest = [ordered]@{ version = $Version; channel = "stable"; updated_at = [DateTime]::UtcNow.ToString("o") }
 $temp = Join-Path $Root "current.json.tmp"
-$manifest | ConvertTo-Json | Set-Content -LiteralPath $temp -Encoding UTF8
+$json = $manifest | ConvertTo-Json
+[System.IO.File]::WriteAllText($temp, $json, [System.Text.UTF8Encoding]::new($false))
 Move-Item -LiteralPath $temp -Destination (Join-Path $Root "current.json") -Force
 Write-Host "STABLE promovido a $Version."

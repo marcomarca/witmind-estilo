@@ -265,7 +265,7 @@ class ShowroomPanel extends HTMLElement {
       }
     }
 
-    if (relevantChanged) this._requestRender();
+    if (relevantChanged) this._updateStatePresentation();
   }
 
   get hass() {
@@ -276,6 +276,9 @@ class ShowroomPanel extends HTMLElement {
     const previousWeather = this._config().weather;
     this._panel = value;
     const nextWeather = this._config().weather;
+    if (this._config().panelKind === "general" && this._activeView === "home") {
+      this._activeView = "lights";
+    }
 
     if (this._started && previousWeather !== nextWeather) {
       this._resetForecastSubscription();
@@ -285,7 +288,7 @@ class ShowroomPanel extends HTMLElement {
     if (this._hass) {
       this._syncStatesFromHass();
       this._loadEnergyStatistics();
-      this._requestRender();
+      this._updateStatePresentation();
     }
   }
 
@@ -304,7 +307,7 @@ class ShowroomPanel extends HTMLElement {
 
   connectedCallback() {
     if (this._hass) {
-      this._requestRender();
+      this._updateStatePresentation();
       this._scheduleEnergyRefresh(true);
     }
   }
@@ -332,6 +335,69 @@ class ShowroomPanel extends HTMLElement {
       this._renderQueued = false;
       this.render();
     });
+  }
+
+  _updateStatePresentation() {
+    if (!this.shadowRoot?.querySelector(".app-shell")) {
+      this._requestRender();
+      return;
+    }
+
+    const updateDevice = (button) => {
+      const entityId = button.dataset.entity;
+      if (!entityId) return;
+      const stateObject = this._state(entityId);
+      const state = this._visibleSwitchState(entityId);
+      const isOn = state === "on";
+      const unavailable = !stateObject || ["unknown", "unavailable"].includes(stateObject.state);
+      const pending = this._pendingSwitches.has(entityId);
+      const error = this._switchErrors.get(entityId);
+      const status = error || (pending
+        ? (state === "on" ? "Encendiendo…" : "Apagando…")
+        : unavailable
+          ? "No disponible"
+          : isOn
+            ? "Encendido"
+            : "Apagado");
+      button.classList.toggle("is-on", isOn);
+      button.classList.toggle("is-pending", pending);
+      button.classList.toggle("is-error", Boolean(error));
+      button.disabled = unavailable;
+      button.setAttribute("aria-pressed", String(isOn));
+      const label = button.querySelector(".device-copy strong")?.textContent || entityId;
+      button.setAttribute("aria-label", `${label}: ${status}`);
+      const statusNode = button.querySelector(".device-copy small");
+      if (statusNode) statusNode.textContent = status;
+    };
+
+    this.shadowRoot.querySelectorAll('[data-action="toggle-switch"]').forEach(updateDevice);
+
+    this.shadowRoot.querySelectorAll('[data-action="run-scene"]').forEach((button) => {
+      const scene = this._allScenes().find((item) => item.key === button.dataset.sceneKey);
+      if (!scene) return;
+      const status = this._sceneStatus(scene);
+      const pending = this._pendingAction === scene.key;
+      const stateText = pending ? "Aplicando..." : status.active ? "Activo" : status.unavailable ? "Sin datos" : "Inactivo";
+      button.classList.toggle("is-pending", pending);
+      button.classList.toggle("is-active", status.active);
+      button.classList.toggle("is-unavailable", status.unavailable);
+      button.disabled = Boolean(this._pendingAction && !pending);
+      button.setAttribute("aria-pressed", String(status.active));
+      const stateNode = button.querySelector(".scene-state");
+      if (stateNode) stateNode.textContent = stateText;
+    });
+
+    const config = this._config();
+    const configuredLights = [...config.spots, ...config.samples, ...(config.reflector ? [config.reflector] : [])];
+    const lightsOn = configuredLights.filter((item) => this._visibleSwitchState(item.entity) === "on").length;
+    const summary = this.shadowRoot.querySelector("[data-lights-summary]");
+    if (summary) summary.textContent = `${lightsOn} de ${configuredLights.length}`;
+    const energySummary = this.shadowRoot.querySelector("[data-energy-summary]");
+    if (energySummary) {
+      energySummary.textContent = this._energyMonthTotal === null
+        ? "Sin datos"
+        : `${this._formatEnergy(this._energyMonthTotal)} kWh`;
+    }
   }
 
   _handleClick(event) {
@@ -462,8 +528,18 @@ class ShowroomPanel extends HTMLElement {
     this._theme = this._theme === "dark" ? "light" : "dark";
     this.setAttribute("data-theme", this._theme);
     this._saveTheme();
+    this.dispatchEvent(new CustomEvent("witmind-theme-change", { detail: { theme: this._theme }, bubbles: true, composed: true }));
     this._requestRender();
   }
+
+  set theme(value) {
+    if (value !== "dark" && value !== "light") return;
+    this._theme = value;
+    this.setAttribute("data-theme", value);
+    this._saveTheme();
+  }
+
+  get theme() { return this._theme; }
 
   _config() {
     const raw = this._panel?.config || {};
@@ -686,7 +762,7 @@ class ShowroomPanel extends HTMLElement {
           this._applyLiveState(stateObject.entity_id, stateObject);
         }
       }
-      this._requestRender();
+      this._updateStatePresentation();
     } catch (error) {
       console.error("No se pudieron sincronizar los estados del showroom:", error);
     }
@@ -701,7 +777,7 @@ class ShowroomPanel extends HTMLElement {
           if (!entityId || !this._trackedEntities().has(entityId)) return;
           this._applyLiveState(entityId, event.data.new_state);
           if (entityId === this._config().energySensor) this._scheduleEnergyRefresh();
-          this._requestRender();
+          this._updateStatePresentation();
         },
         "state_changed",
       );
@@ -1084,7 +1160,8 @@ class ShowroomPanel extends HTMLElement {
       if (requestId === this._energyRequestId) {
         this._energyLoading = false;
         const viewChanged = previousViewSignature !== this._energyViewSignature();
-        if (!hadVisibleData || viewChanged) this._requestRender();
+        if (!hadVisibleData || (viewChanged && this._activeView === "energy")) this._requestRender();
+        else this._updateStatePresentation();
         this._scheduleEnergyRefresh();
       }
     }
@@ -1264,7 +1341,7 @@ class ShowroomPanel extends HTMLElement {
     const stateObject = this._state(entityId);
     if (!stateObject || ["unknown", "unavailable"].includes(stateObject.state)) {
       this._switchErrors.set(entityId, "No disponible");
-      this._requestRender();
+      this._updateStatePresentation();
       return;
     }
 
@@ -1275,7 +1352,7 @@ class ShowroomPanel extends HTMLElement {
 
     this._pendingSwitches.set(entityId, { desired, startedAt: Date.now() });
     this._switchErrors.delete(entityId);
-    this._requestRender();
+    this._updateStatePresentation();
 
     try {
       await this._hass.callService(domain, service, { entity_id: entityId });
@@ -1286,7 +1363,7 @@ class ShowroomPanel extends HTMLElement {
     } catch (error) {
       this._pendingSwitches.delete(entityId);
       this._switchErrors.set(entityId, "La acción falló");
-      this._requestRender();
+      this._updateStatePresentation();
       console.error(`Error ejecutando ${service} en ${entityId}:`, error);
     }
   }
@@ -1298,7 +1375,7 @@ class ShowroomPanel extends HTMLElement {
     this._switchTimers.delete(entityId);
     if (confirmed) this._switchErrors.delete(entityId);
     else this._switchErrors.set(entityId, "Sin confirmación");
-    this._requestRender();
+    this._updateStatePresentation();
   }
 
   _sceneStatus(scene) {
@@ -1396,7 +1473,7 @@ class ShowroomPanel extends HTMLElement {
     const expectations = this._sceneExpectations(scene);
     this._pendingAction = scene.key;
     this._markExpectedStates(expectations);
-    this._requestRender();
+    this._updateStatePresentation();
 
     let sceneServiceError = null;
 
@@ -1437,7 +1514,7 @@ class ShowroomPanel extends HTMLElement {
       this._clearExpectedStates(expectations);
       this._pendingAction = "";
       await this._fetchCurrentStates();
-      this._requestRender();
+      this._updateStatePresentation();
     }
   }
 
@@ -1462,7 +1539,7 @@ class ShowroomPanel extends HTMLElement {
 
     this._pendingAction = scriptEntity || `direct-power-${desired}`;
     this._markExpectedStates(expectations);
-    this._requestRender();
+    this._updateStatePresentation();
 
     let scriptError = null;
 
@@ -1506,7 +1583,7 @@ class ShowroomPanel extends HTMLElement {
       this._clearExpectedStates(expectations);
       this._pendingAction = "";
       await this._fetchCurrentStates();
-      this._requestRender();
+      this._updateStatePresentation();
     }
   }
 
@@ -1542,13 +1619,34 @@ class ShowroomPanel extends HTMLElement {
     }
   }
 
+  _updateToastPresentation() {
+    if (!this.shadowRoot) return;
+    const existing = this.shadowRoot.querySelector("[data-toast]");
+    if (!this._toast) {
+      existing?.remove();
+      return;
+    }
+    if (existing) {
+      existing.className = `toast ${this._escape(this._toast.type)}`;
+      existing.textContent = this._toast.message;
+      return;
+    }
+    const toast = document.createElement("div");
+    toast.dataset.toast = "";
+    toast.className = `toast ${this._escape(this._toast.type)}`;
+    toast.setAttribute("role", "status");
+    toast.textContent = this._toast.message;
+    this.shadowRoot.append(toast);
+  }
+
   _notify(message, type = "success") {
     clearTimeout(this._toastTimer);
     this._toast = { message, type };
-    this._requestRender();
+    if (this.shadowRoot?.querySelector(".app-shell")) this._updateToastPresentation();
+    else this._requestRender();
     this._toastTimer = setTimeout(() => {
       this._toast = null;
-      this._requestRender();
+      this._updateToastPresentation();
     }, 4200);
   }
 
@@ -2078,15 +2176,21 @@ class ShowroomPanel extends HTMLElement {
   }
 
   _renderNavigation() {
-    const items = [
-      ["home", "bulb", "Inicio"],
-      ["lights", "spot", "Iluminación"],
-      ["energy", "energy", "Energía"],
-      ["system", "health", "Sistema"],
-    ];
+    const items = this._config().panelKind === "general"
+      ? [
+          ["lights", "spot", "Iluminación"],
+          ["energy", "energy", "Energía"],
+          ["system", "health", "Sistema"],
+        ]
+      : [
+          ["home", "bulb", "Inicio"],
+          ["lights", "spot", "Iluminación"],
+          ["energy", "energy", "Energía"],
+          ["system", "health", "Sistema"],
+        ];
 
     return `
-      <nav class="view-navigation" aria-label="Secciones del showroom">
+      <nav class="view-navigation ${items.length === 3 ? "is-general" : ""}" aria-label="Secciones de ${this._escape(this._config().title)}">
         ${items.map(([view, icon, label]) => `
           <button
             class="view-navigation-button ${this._activeView === view ? "is-active" : ""}"
@@ -2142,9 +2246,10 @@ class ShowroomPanel extends HTMLElement {
   }
 
   _renderActiveView(config) {
-    if (config.staticOnly || config.panelKind === "general") return this._renderGeneralStatic();
+    if (config.staticOnly) return this._renderGeneralStatic();
 
     if (this._activeView === "lights") {
+      const circuitTitle = config.panelKind === "general" ? "Circuitos" : "Spots";
       return `
         <section class="view-panel view-lights" aria-labelledby="lights-view-title">
           <header class="view-heading">
@@ -2153,13 +2258,13 @@ class ShowroomPanel extends HTMLElement {
           </header>
           <div class="lighting-layout">
             <section class="surface control-section spots-section">
-              <div class="section-heading compact-heading"><div><h2>Spots</h2></div></div>
+              <div class="section-heading compact-heading"><div><h2>${circuitTitle}</h2></div></div>
               <div class="device-grid">${config.spots.map((item) => this._renderDevice(item)).join("")}</div>
             </section>
-            <section class="surface control-section samples-section">
+            ${config.samples.length ? `<section class="surface control-section samples-section">
               <div class="section-heading compact-heading"><div><h2>Muestras</h2></div></div>
               <div class="device-grid">${config.samples.map((item) => this._renderDevice(item)).join("")}</div>
-            </section>
+            </section>` : ""}
             ${config.reflector ? `<section class="surface control-section reflector-section"><div class="section-heading compact-heading"><div><h2>Exterior</h2></div></div>${this._renderDevice(config.reflector)}</section>` : ""}
           </div>
         </section>
@@ -2196,7 +2301,8 @@ class ShowroomPanel extends HTMLElement {
     this.setAttribute("data-theme", this._theme);
 
     const config = this._config();
-    const isGeneralPanel = config.staticOnly || config.panelKind === "general";
+    this.setAttribute("data-panel-kind", config.panelKind);
+    const isGeneralPanel = config.staticOnly;
     const weather = this._state(config.weather);
     const weatherAttrs = weather?.attributes || {};
     const condition = weather?.state;
@@ -2920,6 +3026,7 @@ class ShowroomPanel extends HTMLElement {
           border-radius: var(--radius-pill);
           background: var(--surface);
         }
+        .view-navigation.is-general { grid-template-columns: repeat(3, auto); }
         .view-navigation-button {
           min-height: 44px;
           padding: 0 16px;
@@ -3038,6 +3145,9 @@ class ShowroomPanel extends HTMLElement {
           .dashboard { padding: 16px 14px 88px; }
           .workspace-heading { display: grid; gap: 16px; align-items: stretch; }
           .workspace-heading > div { display: none; }
+          :host([data-panel-kind="showroom"]) .workspace-heading > div { display: block; }
+          :host([data-panel-kind="showroom"]) .workspace-heading { gap: 12px; margin-bottom: 18px; }
+          :host([data-panel-kind="showroom"]) .workspace-heading h1 { font-size: 26px; }
           .view-navigation { width: 100%; grid-template-columns: repeat(4, 1fr); border-radius: 18px; }
           .view-navigation-button { padding: 0 8px; gap: 5px; }
           .view-navigation-button span { font-size: 9px; }
@@ -3073,23 +3183,23 @@ class ShowroomPanel extends HTMLElement {
               aria-label="Abrir menú de navegación de Home Assistant"
               title="Abrir menú"
             >${MENU_ICON}</button>
-            <div class="brand" aria-label="Witmind Showroom">
+            <div class="brand" aria-label="${this._escape(config.title)}">
               <strong class="brand-wordmark">WITMIND</strong>
               <span>${this._escape(config.siteLabel)}</span>
             </div>
           </div>
-          ${isGeneralPanel ? "" : `<div class="status-strip" aria-label="Resumen del showroom">
+          ${isGeneralPanel ? "" : `<div class="status-strip" aria-label="Resumen de ${this._escape(config.title)}">
             <button class="status-pill ${lightsOn ? "is-active" : ""}" data-action="set-view" data-view="lights">
               <span class="status-pill-icon">${this._icon("bulb")}</span>
-              <span><strong>${lightsOn} de ${configuredLights.length}</strong><small>Luces</small></span>
+              <span><strong data-lights-summary>${lightsOn} de ${configuredLights.length}</strong><small>Luces</small></span>
             </button>
-            <button class="status-pill ${mediaState === "playing" ? "is-active" : ""}" data-action="set-view" data-view="home">
+            ${config.panelKind === "general" ? "" : `<button class="status-pill ${mediaState === "playing" ? "is-active" : ""}" data-action="set-view" data-view="home">
               <span class="status-pill-icon">${this._icon("music")}</span>
               <span><strong>${this._escape(mediaLabel)}</strong><small>Multimedia</small></span>
-            </button>
+            </button>`}
             <button class="status-pill" data-action="set-view" data-view="energy">
               <span class="status-pill-icon">${this._icon("energy")}</span>
-              <span><strong>${this._escape(energyLabel)}</strong><small>Este mes</small></span>
+              <span><strong data-energy-summary>${this._escape(energyLabel)}</strong><small>Este mes</small></span>
             </button>
           </div>`}
           <div class="topbar-meta">
@@ -3118,7 +3228,7 @@ class ShowroomPanel extends HTMLElement {
       </div>
 
       ${this._renderConfirmDialog()}
-      ${this._toast ? `<div class="toast ${this._escape(this._toast.type)}" role="status">${this._escape(this._toast.message)}</div>` : ""}
+      ${this._toast ? `<div data-toast class="toast ${this._escape(this._toast.type)}" role="status">${this._escape(this._toast.message)}</div>` : ""}
     `;
 
     this._updateClock();

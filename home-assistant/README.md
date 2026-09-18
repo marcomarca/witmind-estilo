@@ -8,6 +8,8 @@ La guía completa para colaborar y migrar paneles antiguos está en [`docs/HOME_
 2. Copia `www/witmind-ui-panel.js` a `/config/www/witmind-ui-panel.js`.
 3. Copia `www/witmind-ui/current.json` y las releases generadas a `/config/www/witmind-ui/`.
 4. Fusiona `configuration.yaml.snippet.yaml` con la configuración existente sin duplicar `panel_custom:`.
-5. Reinicia Home Assistant y abre `Witmind Next` desde el sidebar.
+5. Reinicia Home Assistant y abre `Witmind Showroom` o `Gestión de energía` desde el sidebar. La URL antigua `/witmind-next` se conserva para no romper favoritos.
 
-El bridge mantiene la interfaz estable y versiona la aplicación visual. `STABLE` usa `current.json`, `PREVIEW` carga una release explícita y `DEV` prueba el Vite del PC; si DEV no responde en 4 segundos, vuelve a STABLE. La release activa actual es `0.1.8` e incluye el panel paralelo `Witmind Lobby` aislado a sus cuatro circuitos y escenas, junto al panel estático `Witmind General`.
+El bridge mantiene la interfaz estable y versiona la aplicación visual. `STABLE` usa `current.json`, `PREVIEW` carga una release explícita y `DEV` prueba el Vite del PC; si DEV no responde en 4 segundos, vuelve a STABLE. La release activa actual es `0.5.2`. Incluye el panel paralelo `Witmind Lobby` aislado a sus cuatro circuitos y escenas, `Witmind General`, el panel global `Gestión de energía` y un workspace que permite deslizar horizontalmente entre General, Showroom, Lobby, Oficinas, Grabación, Energía, Calendario, Notificaciones y Control sin cambiar de entrada de Home Assistant.
+
+El procedimiento, modelo de cálculo, potencias conocidas, límites y evidencia de despliegue del panel energético están en [`docs/PLAN_PANEL_GESTION_ENERGIA.md`](../docs/PLAN_PANEL_GESTION_ENERGIA.md).

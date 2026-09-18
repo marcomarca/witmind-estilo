@@ -86,8 +86,23 @@
       const merged = { ...DEFAULT_CONFIG, ...config };
       // El tag propio del panel es la fuente de verdad si HA no conserva
       // `panel_kind` dentro de la configuración serializada.
-      if (this.localName === "witmind-lobby-panel") merged.panel_kind = "lobby";
-      if (this.localName === "witmind-general-panel") merged.panel_kind = "general";
+      if (["witmind-lobby-panel", "witmind-lobby"].includes(this.localName)) merged.panel_kind = "lobby";
+      if (["witmind-general-panel", "witmind-general"].includes(this.localName)) merged.panel_kind = "general";
+      if (["oficinas-panel", "witmind-oficinas-panel"].includes(this.localName)) merged.panel_kind = "offices";
+      if (["sala-grabacion-panel", "witmind-grabacion-panel"].includes(this.localName)) merged.panel_kind = "recording";
+      if (["calendario-laboral-panel", "witmind-calendario-panel"].includes(this.localName)) merged.panel_kind = "calendar";
+      if (["notifications-panel", "witmind-notifications-panel"].includes(this.localName)) merged.panel_kind = "notifications";
+      if (["control-general-panel", "witmind-control-panel"].includes(this.localName)) merged.panel_kind = "control";
+      if (["witmind-energy-panel", "witmind-energia-panel"].includes(this.localName)) merged.panel_kind = "energy";
+      if (["witmind-lobby-panel", "witmind-lobby"].includes(this.localName)) merged.panel_id = "lobby";
+      if (["witmind-general-panel", "witmind-general"].includes(this.localName)) merged.panel_id = "general";
+      if (["oficinas-panel", "witmind-oficinas-panel"].includes(this.localName)) merged.panel_id = "offices";
+      if (["sala-grabacion-panel", "witmind-grabacion-panel"].includes(this.localName)) merged.panel_id = "recording";
+      if (["calendario-laboral-panel", "witmind-calendario-panel"].includes(this.localName)) merged.panel_id = "calendar";
+      if (["notifications-panel", "witmind-notifications-panel"].includes(this.localName)) merged.panel_id = "notifications";
+      if (["control-general-panel", "witmind-control-panel"].includes(this.localName)) merged.panel_id = "control";
+      if (["witmind-energy-panel", "witmind-energia-panel"].includes(this.localName)) merged.panel_id = "energy";
+      if (["witmind-ui-panel", "witmind-showroom-panel", "witmind-showroom"].includes(this.localName) && !merged.panel_id) merged.panel_id = "showroom";
       return merged;
     }
     _storage(key) {
@@ -199,7 +214,7 @@
       this._iframe.contentWindow.postMessage({ protocol: PROTOCOL, source: "witmind-ha", ...message }, this._iframe.dataset.targetOrigin || "*");
     }
     _sendInit() {
-      this._post({ type: "WITMIND_INIT", mode: this._mode, narrow: this._narrow, theme: this._hass?.selectedTheme || null, panelConfig: this._config() });
+      this._post({ type: "WITMIND_INIT", mode: this._mode, narrow: this._narrow, theme: this._hass?.selectedTheme || null, user: { is_admin: Boolean(this._hass?.user?.is_admin), name: this._hass?.user?.name || "" }, panelConfig: this._config() });
       this._sendEntitySnapshot();
     }
     _sendEntitySnapshot() {
@@ -297,7 +312,13 @@
       try {
         if (!this._hass?.connection?.sendMessagePromise) throw new Error("Conexión HA no disponible");
         const type = String(message.command || "");
-        const allowed = ["recorder/get_statistics_metadata", "recorder/statistics_during_period"];
+        const allowed = [
+          "recorder/get_statistics_metadata", "recorder/statistics_during_period",
+          "history/history_during_period",
+          "calendario_laboral/get", "calendario_laboral/update", "calendario_laboral/delete", "calendario_laboral/add",
+          "witmind_notifications/rules/list", "witmind_notifications/targets/list", "witmind_notifications/sensors/list", "witmind_notifications/history/list",
+          "witmind_notifications/targets/alias/set", "witmind_notifications/rules/create", "witmind_notifications/rules/update", "witmind_notifications/rules/toggle", "witmind_notifications/rules/delete", "witmind_notifications/test",
+        ];
         if (!allowed.includes(type)) throw new Error("Comando HA no permitido");
         const result = await this._hass.connection.sendMessagePromise({ type, ...(message.payload || {}) });
         this._post({ type: "WITMIND_HA_RESULT", requestId, ok: true, result });
@@ -326,13 +347,19 @@
   // Home Assistant usa el valor `name` de cada entrada panel_custom como tag
   // del elemento. El Lobby conserva su nombre propio, pero comparte el mismo
   // bridge y la misma UI aislada que Witmind Next.
-  if (!customElements.get("witmind-ui-panel")) {
-    customElements.define("witmind-ui-panel", WitmindUiPanel);
-  }
-  if (!customElements.get("witmind-lobby-panel")) {
-    customElements.define("witmind-lobby-panel", WitmindUiPanel);
-  }
-  if (!customElements.get("witmind-general-panel")) {
-    customElements.define("witmind-general-panel", WitmindUiPanel);
-  }
+  if (!customElements.get("witmind-ui-panel")) customElements.define("witmind-ui-panel", WitmindUiPanel);
+  const defineAlias = (tag) => {
+    if (!customElements.get(tag)) customElements.define(tag, class WitmindUiPanelAlias extends WitmindUiPanel {});
+  };
+  [
+    "witmind-showroom-panel", "witmind-showroom",
+    "witmind-lobby-panel", "witmind-lobby",
+    "witmind-general-panel", "witmind-general",
+    "oficinas-panel", "witmind-oficinas-panel",
+    "sala-grabacion-panel", "witmind-grabacion-panel",
+    "calendario-laboral-panel", "witmind-calendario-panel",
+    "notifications-panel", "witmind-notifications-panel",
+    "control-general-panel", "witmind-control-panel",
+    "witmind-energy-panel", "witmind-energia-panel",
+  ].forEach(defineAlias);
 })();

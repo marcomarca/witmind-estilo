@@ -1,17 +1,17 @@
-# Migración de paneles Home Assistant a Witmind Next
+# Migración de paneles Home Assistant a Witmind Signature
 
 Guía operativa para que nuevos desarrolladores conviertan paneles antiguos de Home Assistant en vistas del sistema Witmind Signature sin romper los paneles existentes.
 
 ## Estado actual
 
-La instalación paralela vigente en Home Assistant es `Witmind Next`.
+La instalación vigente en Home Assistant usa `Witmind Showroom` como entrada principal; `/witmind-next` se conserva como URL compatible.
 
 | Recurso | Ubicación actual |
 | --- | --- |
 | Panel bridge | `/config/www/witmind-ui-panel.js` |
 | Aplicación estable | `/config/www/witmind-ui/current.json` |
-| Release activa | `0.1.8` |
-| Releases conservadas | `0.1.0`, `0.1.1`, `0.1.2`, `0.1.3`, `0.1.4`, `0.1.5`, `0.1.6`, `0.1.7`, `0.1.8` y la antigua `1.0.0` |
+| Release activa | `0.4.1` |
+| Releases conservadas | `0.1.0`–`0.1.10`, `0.2.0`, `0.2.1`, `0.3.0`, `0.3.1` y la antigua `1.0.0` |
 | Integración SQLite | `/config/custom_components/witmind_core/` |
 | Base de datos | `/config/witmind/witmind.db` |
 | Puerto DEV | `192.168.20.44:5174` |
@@ -19,7 +19,7 @@ La instalación paralela vigente en Home Assistant es `Witmind Next`.
 
 La aplicación nueva no reemplaza todavía `witmind-panel`, `showroom-3d-panel`, `showroom-v2-panel` ni los demás paneles. Se migra uno por uno y cada versión se publica como una release inmutable.
 
-La release `0.1.3` añade el panel paralelo `Witmind Lobby`. Reutiliza la UI del showroom con `panel_kind: lobby`, las cuatro entidades reales del Lobby y las escenas `Visita`/`Regular`. Su energía usa temporalmente `sensor.showroom_energia_estimada`, que es la estimación global existente; no se inventan potencias para los circuitos del Lobby. Las releases `0.1.4`/`0.1.5` añaden el proxy persistente de `weather/subscribe_forecast`; la `0.1.6` conecta la hamburguesa visual con el evento oficial `hass-toggle-menu`; la `0.1.7` añade el alias del tag Lobby y la `0.1.8` conserva listas aisladas del Lobby y añade el modo estático `Witmind General`.
+La release `0.1.3` añade el panel paralelo `Witmind Lobby`. Reutiliza la UI del showroom con `panel_kind: lobby`, las cuatro entidades reales del Lobby y las escenas `Visita`/`Regular`. Su energía usa temporalmente `sensor.showroom_energia_estimada`, que es la estimación global existente; no se inventan potencias para los circuitos del Lobby. Las releases `0.1.4`/`0.1.5` añaden el proxy persistente de `weather/subscribe_forecast`; la `0.1.6` conecta la hamburguesa visual con el evento oficial `hass-toggle-menu`; la `0.1.7` añade el alias del tag Lobby; la `0.1.8` conserva listas aisladas del Lobby y añade el modo estático `Witmind General`; la `0.1.9` actualiza controles y escenas sin reconstruir el Shadow DOM completo; la `0.1.10` consolida el parche de estado incremental para switches, escenas y el resumen de energía; la `0.2.0` incorpora el workspace con navegación horizontal entre paneles; la `0.2.1` endurece el gesto para ignorar controles anidados.
 
 ## Principios que no se deben romper
 
@@ -67,6 +67,49 @@ Home Assistant
                            └─ PostMessageHaClient
                                 └─ showroom-panel / futura vista migrada
 ```
+
+## Workspace multidispositivo y navegación horizontal
+
+Las entradas de `panel_custom` siguen siendo independientes (`witmind-general`,
+`witmind-lobby` y `witmind-next`), pero todas cargan la misma aplicación aislada.
+La release `0.4.1` monta un `witmind-workspace` con General, Showroom, Lobby,
+Oficinas, Sala de grabación, Calendario laboral, Notificaciones Witmind y
+Control general. Cada entrada envía `panel_id` para seleccionar la vista inicial; el
+usuario puede cambiar entre ellas con gesto horizontal, teclado, botones o los
+indicadores inferiores sin abandonar la URL de Home Assistant.
+
+Los watts mostrados en Oficinas, Grabación y Control son potencia nominal
+proporcionada para el diseño; no son consumo medido por Recorder. Oficinas usa
+48 W Witronix, 48 W Mindtec, 168 W para cada oficina grande, 96 W
+Multifuncional, 117 W Pasillos (3×24 W + 3×15 W) y 144 W Taller. Grabación
+usa 24 W Tira LED, 96 W Paneles, 50 W Spots y 30 W Otras luces (200 W total).
+Si cambia la instalación, actualiza las constantes de `src/witmind-workspace.ts`.
+
+Los cinco paneles migrados en `0.3.3` conservan sus `url_path` y entidades
+anteriores: Oficinas y Sala de grabación usan `witmind-operations-panel`,
+Calendario y Notificaciones usan `witmind-admin-panel`, y Control general usa
+el mismo componente operativo con sus escenas/scripts existentes. El bridge
+habilita únicamente los comandos WebSocket necesarios para calendario y
+notificaciones; no se migran otros paneles en esta etapa.
+
+Reglas del workspace:
+
+- El gesto solo se activa cuando el movimiento horizontal supera al vertical y
+  no comienza sobre un botón, enlace, campo o control interactivo.
+- El desplazamiento vertical de cada vista se conserva y no se permite overflow
+  horizontal del documento.
+- Las páginas inactivas son `aria-hidden` e `inert`; los botones de navegación
+  siguen disponibles para teclado y lectores de pantalla.
+- Las vistas permanecen montadas para conservar filtros, scroll y estados; los
+  cambios de Home Assistant actualizan la presentación incrementalmente, sin
+  reconstruir todo el Shadow DOM.
+- Las entidades siguen llegando exclusivamente por `witmind-ui-panel.js`; el
+  workspace no accede al objeto `hass` ni a WebSocket directamente.
+
+Para añadir un panel futuro se incorpora una definición al registro del
+workspace y su configuración (`panel_kind`, entidades y servicios) en el
+manifiesto/configuración del panel. No se debe crear otro bridge ni copiar la UI
+completa dentro de `configuration.yaml`.
 
 ### Modos del bridge
 
@@ -225,7 +268,7 @@ node_modules/.bin/vite.cmd build --mode panel
 El build genera `dist-panel/witmind-ui.html` y assets relativos. Para el flujo normal:
 
 ```powershell
-.\tools\release.ps1 -Version 0.2.0
+.\tools\release.ps1 -Version 0.3.3
 ```
 
 El script:
@@ -233,7 +276,7 @@ El script:
 - rechaza una carpeta de release existente;
 - valida TypeScript;
 - ejecuta Vite en modo panel;
-- crea `releases/0.2.0`;
+- crea `releases/0.3.3`;
 - copia `index.html` y `assets/`;
 - no modifica `current.json`.
 
@@ -264,15 +307,16 @@ El bloque se añade dentro del `panel_custom:` existente:
 ```yaml
 - name: witmind-ui-panel
   url_path: witmind-next
-  sidebar_title: Witmind Next
+  sidebar_title: Witmind Showroom
   sidebar_icon: mdi:view-dashboard-variant
-  module_url: /local/witmind-ui-panel.js?v=0.1.1
+  module_url: /local/witmind-ui-panel.js?v=0.3.3
   require_admin: false
   config:
     app_base: /local/witmind-ui
     dev_url: http://192.168.20.44:5174/witmind-ui.html
     default_mode: stable
-    fallback_release: 0.1.0
+    panel_id: showroom
+    fallback_release: 0.3.3
 ```
 
 No usar `embed_iframe: true`: el propio custom element crea el iframe.
@@ -282,7 +326,7 @@ No usar `embed_iframe: true`: el propio custom element crea el iframe.
 Respaldar `current.json` y luego:
 
 ```powershell
-.\tools\promote.ps1 -Version 0.2.0
+.\tools\promote.ps1 -Version 0.3.3
 .\tools\rollback.ps1 -Version 0.1.1
 ```
 
@@ -324,7 +368,7 @@ node --check src/showroom-panel.js
 ### Home Assistant
 
 - [ ] La configuración YAML pasa la comprobación de Home Assistant.
-- [ ] `Witmind Next` aparece en el sidebar.
+- [ ] `Witmind Showroom` aparece en el sidebar.
 - [ ] Network devuelve 200 para bridge, `current.json`, `index.html`, JS y CSS.
 - [ ] La consola no contiene `_render is not a function` ni errores del iframe.
 - [ ] Se recibe `WITMIND_READY` y `WITMIND_INIT`.
