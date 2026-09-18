@@ -1,101 +1,160 @@
 ---
 name: witmind-failure-history
-description: Registro histórico sintetizado de fallas, regresiones, causas raíz y resoluciones entre versiones de Witmind Home Assistant. Consultar antes de modificar el workspace, gestos táctiles/ratón, el bridge o vistas de paneles para no repetir errores pasados.
+description: Registro histórico sintetizado y cronológico de fallas, regresiones, causas raíz y resoluciones entre versiones de Witmind Home Assistant. Consultar obligatoriamente antes de modificar el workspace, gestos táctiles/ratón en móvil/desktop, el bridge o vistas de paneles para no repetir errores pasados.
 ---
 
-# Registro Histórico de Fallas y Regresiones (Witmind HA)
+# Registro Histórico de Fallas, Regresiones y Soluciones (Witmind HA)
 
-Este documento es la memoria técnica de fallas ocurridas en la integración real de Witmind con Home Assistant. Cualquier agente de IA o desarrollador debe consultar este registro antes de alterar componentes críticos para no reintroducir bugs ya resueltos.
+> **MANDATO PARA AGENTES DE IA Y DESARROLLADORES:**
+> Este documento recopila todas las fallas reales que ocurrieron durante la evolución de Witmind en Home Assistant OS (desde `0.1.0` hasta `0.5.14`). Muchas de estas fallas requirieron días de depuración en entornos hostiles (como el WebView de la app de Android dentro de un iframe).
+> **Antes de realizar cualquier cambio en gestos, listeners de eventos, el bridge `witmind-ui-panel.js` o el ciclo de vida de los paneles, revisa este historial para no reintroducir un bug previamente resuelto.**
 
 ---
 
-## Índice de Fallas y Soluciones por Versión
+## 1. Tabla Cronológica de Fallas por Versión
 
-### 1. Falla de Clics en Desktop por Captura Prematura de Puntero
-- **Versión con falla**: `0.5.13`
-- **Versión corregida**: `0.5.14`
+| Versión Falla | Versión Corrección | Componente / Ruta Afectada | Síntoma Real | Causa Raíz Técnica Breve |
+|---|---|---|---|---|
+| `0.1.0` | `0.1.1` | [`tools/release.ps1`](file:///c:/dev/automatizacion-estilo/tools/release.ps1) | Error 404 al abrir el panel en Home Assistant. | Vite compilaba como `witmind-ui.html`; el bridge exige `index.html`. |
+| `0.1.2` | `0.1.3` | [`src/showroom-panel.js`](file:///c:/dev/automatizacion-estilo/src/showroom-panel.js) | Métricas de energía rotas o inexistentes en Lobby. | Se intentaban inventar mediciones para circuitos sin potencia documentada. |
+| `0.1.5` | `0.1.6` | [`src/ha/WitmindHaClient.ts`](file:///c:/dev/automatizacion-estilo/src/ha/WitmindHaClient.ts) | Menú hamburguesa (tres líneas) inoperativo. | Iframe aislado intentaba acceder directamente a Home Assistant sin postMessage. |
+| `0.1.6` | `0.1.7` | [`home-assistant/www/witmind-ui-panel.js`](file:///c:/dev/automatizacion-estilo/home-assistant/www/witmind-ui-panel.js) | Pantalla en blanco al entrar a Lobby por sidebar. | Desincronización del tag Custom Element con el `panel_kind`. |
+| `0.1.8` | `0.1.9` | [`src/showroom-panel.js`](file:///c:/dev/automatizacion-estilo/src/showroom-panel.js) | Parpadeo total de pantalla y pérdida de scroll al tocar un switch. | Reconstrucción completa del Shadow DOM (`innerHTML = ...`) en cada cambio de estado. |
+| `0.2.0` | `0.2.1` | [`src/witmind-workspace.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-workspace.ts) | Al usar sliders o switches, la vista cambiaba horizontalmente de panel. | Gesto de swipe no excluía controles anidados en `composedPath()`. |
+| Pre-`0.3.3` | `0.3.3` | [`src/witmind-workspace.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-workspace.ts) | Vistas operativas y administrativas en blanco. | Nombres de tags en `configuration.yaml` no normalizados en `safePanelId`. |
+| `0.4.8` | `0.4.10` | [`src/witmind-admin-panel.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-admin-panel.ts) | Calendario laboral mostraba `0 registros` teniendo 15 en la base de datos. | Backend devolvía clave `holidays`; el frontend buscaba `records`, `items` o `events`. |
+| `0.5.0` | `0.5.1` | [`src/swipe-gesture.ts`](file:///c:/dev/automatizacion-estilo/src/swipe-gesture.ts) | Deslizar a la izquierda o cancelar siempre forzaba el cambio a la derecha. | `pointercancel` entregaba `clientX = 0`, calculando una distancia negativa gigante. |
+| `0.5.1` | `0.5.2` | [`src/showroom-panel.js`](file:///c:/dev/automatizacion-estilo/src/showroom-panel.js) | Título de Showroom desaparecía en tablets (588px a 760px). | Breakpoint container `@container showroom-panel (max-width: 760px)` con `display: none`. |
+| `0.5.3` | `0.5.4` | [`tools/release.ps1`](file:///c:/dev/automatizacion-estilo/tools/release.ps1) | Error 404 en el bridge tras despliegue de versión. | Despliegue manual copió `witmind-ui.html` saltándose el script de release. |
+| `0.5.6` | `0.5.7` | [`src/swipe-gesture.ts`](file:///c:/dev/automatizacion-estilo/src/swipe-gesture.ts) | En Android, levantar el dedo invertía la dirección o trababa la pantalla. | Android WebView reporta `clientX = 0` en el evento nativo `pointerup`. |
+| `0.5.7` | `0.5.8` | [`src/witmind-app.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-app.ts) | Pantalla parpadeaba y montaba Showroom antes del panel solicitado. | Doble emisión de `WITMIND_INIT` (en `load` y tras `WITMIND_READY`) no idempotente. |
+| `0.5.8` | `0.5.9` | Paneles en [`src/`](file:///c:/dev/automatizacion-estilo/src/) | Renders múltiples e innecesarios durante el arranque. | Setters ejecutaban `render()` antes de que el elemento estuviera conectado (`isConnected`). |
+| `0.5.9` | `0.5.10` | [`home-assistant/configuration.yaml.snippet.yaml`](file:///c:/dev/automatizacion-estilo/home-assistant/configuration.yaml.snippet.yaml) | La app de Android conservaba versiones viejas y rotas del bridge. | Falta de cache-busting sincronizado (`module_url: ...?v=0.5.10`) en las 9 entradas de HA. |
+| `0.5.10` | `0.5.11` | [`src/showroom-panel.js`](file:///c:/dev/automatizacion-estilo/src/showroom-panel.js) | Marca y título colapsaban en smartphones estrechos (< 460px). | Regla container `@container (max-width: 460px)` ocultaba agresivamente elementos de marca. |
+| `0.5.11` | `0.5.12` | [`src/witmind-workspace.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-workspace.ts) | Imposible deslizar en smartphone: nada se movía con el dedo. | Las tarjetas cubren el 95% de la pantalla a 389px y los botones estaban excluidos del gesto. |
+| `0.5.12` | `0.5.13` | [`src/witmind-workspace.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-workspace.ts) | Gesto táctil congelado a mitad de camino en app Android al recibir estados. | Android WebView cancela Pointer Events en iframes si un nodo hijo se actualiza. |
+| `0.5.13` | `0.5.14` | [`src/witmind-workspace.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-workspace.ts) | En Desktop con ratón, los clics en Iluminación, Energía y Sistema no funcionaban. | `setPointerCapture` en `pointerdown` capturaba el puntero y cancelaba el `click` en ratón. |
+
+---
+
+## 2. Fichas Técnicas Detalladas de las Fallas Críticas
+
+---
+
+### FALLA A: La Cancelación de Pointer Events en Android WebView (0.5.12 $\rightarrow$ 0.5.13)
 - **Ruta afectada**: [`src/witmind-workspace.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-workspace.ts)
-- **Síntoma real**: En escritorio con ratón, los botones de navegación interna ([Inicio], [Iluminación], [Energía], [Sistema]) no respondían al clic ni cambiaban de vista. En móvil funcionaba bien.
-- **Causa raíz**: Se quitó `button` de `_isSwipeIgnored` y se llamó a `setPointerCapture` inmediatamente en `_onPointerDown`. En desktop (ratón), el contenedor `.track` capturaba todo el puntero al presionar el ratón y los botones nunca recibían el evento `click`.
-- **Solución en `0.5.14`**: Diferir `setPointerCapture` a `_onPointerMove` únicamente tras confirmar desplazamiento horizontal real (`dx > 8px`). Al hacer clic simple sin arrastre, nunca se captura el puntero.
-- **Regla preventiva**: **Nunca capturar el puntero en `pointerdown` en contenedores padre**. La captura se activa solo cuando se valida el inicio de un arrastre intencional.
+- **Entorno del fallo**: Smartphone físico ejecutando la app oficial de Home Assistant para Android.
+- **Síntoma real**: Al apoyar el dedo sobre la pantalla para deslizar entre salas, el carrusel comenzaba a moverse y repentinamente se quedaba congelado a mitad de pantalla sin responder al dedo.
+- **Causa raíz técnica**:
+  1. La arquitectura de Witmind se ejecuta dentro de un `iframe` incrustado en el Custom Panel de Home Assistant.
+  2. En Android WebView, cuando un Web Component hijo actualiza su Shadow DOM (por ejemplo, porque Home Assistant envió un evento WebSocket o un cambio de sensor de 1W), el motor Blink de Android **dispara un `pointercancel` inmediato en el Pointer Event activo**.
+  3. Adicionalmente, si el scroll oculta o muestra la barra de navegación del móvil, el evento `resize` forzaba `_snap()`, abortando el deslizamiento en pleno arrastre.
+- **Solución implementada en `0.5.13`**:
+  1. **Desacoplamiento total**: En dispositivos táctiles (`event.pointerType === "touch"`), se descartaron los Pointer Events y se adoptaron **Touch Events puros** (`touchstart`, `touchmove`, `touchend`, `touchcancel`).
+  2. **Anclaje a `window`**: Los listeners `touchmove` y `touchend` se registran a nivel de `window`. Así, aunque el componente hijo desmonte o vuelva a renderizar su Shadow DOM, `window` no pierde el contacto del dedo.
+  3. **Inmunidad ante `resize`**: Si existe un arrastre activo (`this._drag || this._touchDrag`), el evento `resize` no dispara `_snap()`.
+- **Regla preventiva**: **Nunca confiar en Pointer Events para gestos táctiles complejos dentro de un iframe en Android WebView**. Usar Touch Events escuchados en `window`.
 
 ---
 
-### 2. Disparos Involuntarios de Gestos sobre Controles Interactivos
-- **Versión con falla**: `0.2.0`
-- **Versión corregida**: `0.2.1`
-- **Ruta afectada**: [`src/witmind-workspace.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-workspace.ts), [`src/swipe-gesture.ts`](file:///c:/dev/automatizacion-estilo/src/swipe-gesture.ts)
-- **Síntoma real**: Al intentar operar un slider, switch o selector dentro de una tarjeta, el carrusel cambiaba de pantalla horizontalmente.
-- **Causa raíz**: No se filtraba la ruta de propagación del evento (`composedPath()`) para elementos interactivos anidados en Shadow DOM.
-- **Solución en `0.2.1`**: Incorporación de `_isSwipeIgnored` evaluando `event.composedPath()` contra `input, textarea, select, [data-no-swipe]` y asegurando que el desplazamiento horizontal supere estrictamente al vertical con sesgo (`SWIPE_AXIS_BIAS = 1.15`).
-- **Regla preventiva**: Al escuchar eventos de gestos en el nivel superior, inspeccionar siempre `composedPath()` para respetar elementos interactivos internos de Web Components.
+### FALLA B: Imposibilidad de Iniciar el Swipe en Smartphones Estrechos (0.5.11 $\rightarrow$ 0.5.12)
+- **Ruta afectada**: [`src/witmind-workspace.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-workspace.ts)
+- **Síntoma real**: En un smartphone a 389px de ancho, el usuario intentaba hacer swipe horizontal y la pantalla no se movía en absoluto. En tablet y desktop sí funcionaba.
+- **Causa raíz técnica**: Para evitar clics accidentales, el selector `_isSwipeIgnored` incluía `button, a`. En una pantalla móvil de 389px, las tarjetas táctiles (`<button class="scene">`, `<button class="device">`) ocupan prácticamente el 100% del área útil. No existía ningún píxel libre de fondo donde el dedo pudiera posarse para iniciar un arrastre.
+- **Solución implementada en `0.5.12`**:
+  1. Permitir que el gesto horizontal inicie **sobre botones y enlaces** (`button` y `a` removidos de `_isSwipeIgnored`).
+  2. Solo se mantienen excluidos controles con arrastre propio (`input[type="range"]`, campos de texto, `select` y `[data-no-swipe]`).
+  3. **Seguridad contra clics accidentales**: Si el usuario realiza un arrastre horizontal, al soltar el dedo se activa `this._suppressClickUntil = performance.now() + 500;`. Esto consume el evento `click` sintetizado que Android emite después de `touchend`, evitando que el gesto encienda o apague luces.
+- **Regla preventiva**: En interfaces compactas para móvil, los botones deben permitir el inicio del gesto horizontal, protegiendo las acciones mediante supresión temporal de clics al detectar desplazamiento.
 
 ---
 
-### 3. Pantalla en Blanco por Desincronización de Tags y Normalización
-- **Versión con falla**: Pre-`0.3.3`
-- **Versión corregida**: `0.3.3`
-- **Ruta afectada**: [`home-assistant/www/witmind-ui-panel.js`](file:///c:/dev/automatizacion-estilo/home-assistant/www/witmind-ui-panel.js), [`src/witmind-workspace.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-workspace.ts)
-- **Síntoma real**: Al entrar desde el sidebar a entradas como `/calendario-laboral` o `/witmind-lobby`, la pantalla quedaba en blanco o mostraba panel no encontrado.
-- **Causa raíz**: Home Assistant registraba nombres de Custom Element específicos (ej. `witmind-calendario-laboral-panel`), pero el bridge o el workspace esperaban `panel_kind: calendar`. Si se cambiaba uno sin normalizar el otro, fallaba la resolución.
-- **Solución en `0.3.3`**: Mapeo y normalización bidireccional exhaustiva en `_config()` de `witmind-ui-panel.js` (`this.localName` $\rightarrow$ `panel_kind` / `panel_id`).
-- **Regla preventiva**: Todo nuevo panel debe registrar su alias tanto en la lista de Custom Elements de `witmind-ui-panel.js` como en el mapeo `safePanelId` del workspace.
+### FALLA C: Regresión de Clics en Desktop por Captura Prematura de Puntero (0.5.13 $\rightarrow$ 0.5.14)
+- **Ruta afectada**: [`src/witmind-workspace.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-workspace.ts)
+- **Síntoma real**: En navegadores de escritorio (con ratón), hacer clic en [Inicio], [Iluminación], [Energía], [Sistema], switches o escenas no ejecutaba ninguna acción. En móvil funcionaba.
+- **Causa raíz técnica**:
+  1. Para ratón se usaba `_onPointerDown`.
+  2. Al quitar `button` de la lista de ignorados (en la solución de 0.5.12), `_onPointerDown` ejecutaba:
+     `if (!ignored) track.setPointerCapture(event.pointerId);`
+  3. Apenas el usuario presionaba el botón izquierdo del ratón sobre un botón dentro del Shadow DOM de `showroom-panel`, el contenedor `.track` capturaba el puntero.
+  4. Al soltarse el ratón, el navegador dirigía el `pointerup` a `.track` y **nunca emitía el evento `click` sobre el botón hijo**.
+- **Solución implementada en `0.5.14`**:
+  1. Eliminar `setPointerCapture` de `_onPointerDown`.
+  2. Diferir `setPointerCapture` a `_onPointerMove` **únicamente cuando el desplazamiento horizontal supere el umbral de arrastre (`dx > 8px`)**:
+     ```typescript
+     if (this._drag.axis !== "horizontal") return;
+     if (!this._dragging) {
+       this._dragging = true;
+       track.setPointerCapture(event.pointerId);
+     }
+     ```
+  3. Si el usuario solo hace clic (movimiento $< 8\text{ px}$), nunca se captura el puntero y el botón recibe el evento `click` normal.
+- **Regla preventiva**: **`setPointerCapture` jamás debe ejecutarse en `pointerdown` en contenedores genéricos**, solo en `pointermove` cuando se certifique un arrastre real.
 
 ---
 
-### 4. Parpadeo y Pérdida de Foco por Reconstrucción Total del Shadow DOM
-- **Versión con falla**: `0.1.8`
-- **Versión corregida**: `0.1.9` / `0.1.10`
+### FALLA D: Coordenadas Fantasma en Cero en `pointerup` de Android (0.5.6 $\rightarrow$ 0.5.7)
+- **Ruta afectada**: [`src/swipe-gesture.ts`](file:///c:/dev/automatizacion-estilo/src/swipe-gesture.ts)
+- **Síntoma real**: Al deslizar hacia la izquierda para ir al siguiente panel en Android, al soltar el dedo la vista saltaba abruptamente hacia el panel anterior o se bloqueaba.
+- **Causa raíz técnica**: Varios WebViews de Android reportan `clientX = 0` y `clientY = 0` en el objeto del evento `pointerup`. La fórmula de desplazamiento:
+  `dx = clientX_final - clientX_inicial`
+  se convertía en `0 - 300 = -300`, invirtiendo el sentido calculado o generando un salto falso.
+- **Solución implementada en `0.5.7`**:
+  Creación de la función `resolvePointerReleaseCoordinate`:
+  ```typescript
+  export function resolvePointerReleaseCoordinate(input: {
+    pointerType: string;
+    lastMove: number;
+    release: number;
+  }): number {
+    if (input.pointerType === "mouse" && Number.isFinite(input.release)) return input.release;
+    return input.lastMove; // En táctil, se descarta el release si es cero y se usa el último pointermove válido
+  }
+  ```
+- **Regla preventiva**: En gestos táctiles, nunca asumir que `pointerup` o `touchend` traen las coordenadas reales del impacto; utilizar la última muestra de movimiento válida.
+
+---
+
+### FALLA E: Destrucción Total del Shadow DOM en Cambios de Entidad (0.1.8 $\rightarrow$ 0.1.9)
 - **Ruta afectada**: [`src/showroom-panel.js`](file:///c:/dev/automatizacion-estilo/src/showroom-panel.js)
-- **Síntoma real**: Al encender o apagar una luz, toda la pantalla parpadeaba, se reseteaba el scroll de la vista y se perdía la accesibilidad del teclado.
-- **Causa raíz**: Cada actualización de entidad en Home Assistant invocaba `render()` completo, reemplazando `this.shadowRoot.innerHTML`.
-- **Solución en `0.1.9`**: Implementación de `_updateStatePresentation()`, que muta directamente clases CSS (`is-on`, `is-pending`), atributos ARIA y textos de estado en el DOM existente sin destruirlo.
-- **Regla preventiva**: Separar el render estructural inicial de los parches de estado reactivos. Las actualizaciones de entidades solo deben mutar atributos de los elementos existentes.
+- **Síntoma real**: Al encender cualquier luz, toda la pantalla parpadeaba de golpe, se reiniciaba la posición de scroll y se perdía el foco del teclado.
+- **Causa raíz técnica**: En el setter `set hass()`, cualquier cambio recibido de Home Assistant desencadenaba una llamada incondicional a `render()`, que sobrescribía `this.shadowRoot.innerHTML`.
+- **Solución implementada en `0.1.9`**:
+  Separación en dos flujos:
+  1. `render()` estructural: Solo se ejecuta en el montaje inicial o al cambiar de modo (`home`, `lights`, etc.).
+  2. `_updateStatePresentation()` incremental: Al recibir cambios de WebSocket, busca los elementos existentes por selector (`querySelector('[data-action="toggle-switch"]')`) y actualiza exclusivamente sus clases CSS (`is-on`, `is-pending`), estados ARIA (`aria-pressed`) y textos de estado, manteniendo el DOM intacto.
+- **Regla preventiva**: En Web Components de Home Assistant, **nunca reconstruir el DOM por eventos de WebSocket**. Aplicar parches de atributos en caliente.
 
 ---
 
-### 5. Error 404 del Iframe por Desajuste en el Contrato de Entrada
-- **Versión con falla**: `0.1.0`
-- **Versión corregida**: `0.1.1`
-- **Ruta afectada**: [`tools/release.ps1`](file:///c:/dev/automatizacion-estilo/tools/release.ps1), [`vite.config.ts`](file:///c:/dev/automatizacion-estilo/vite.config.ts)
-- **Síntoma real**: El bridge cargaba `/local/witmind-ui/releases/0.1.0/index.html` devolviendo `404 Not Found`.
-- **Causa raíz**: Vite compilaba el punto de entrada con el nombre del archivo fuente `dist-panel/witmind-ui.html`, mientras que el bridge en Home Assistant espera por convención `/releases/<version>/index.html`.
-- **Solución en `0.1.1`**: `release.ps1` copia automáticamente `witmind-ui.html` renombrándolo a `index.html` y verifica que existan tanto `index.html` como `assets/`.
-- **Regla preventiva**: Toda release inmutable debe contener obligatoriamente `index.html`. Una release con solo `witmind-ui.html` es inválida y debe ser rechazada antes de la promoción.
+### FALLA F: Contrato de Entrada Roto por Despliegue Manual (0.1.0 $\rightarrow$ 0.1.1 y 0.5.3 $\rightarrow$ 0.5.4)
+- **Ruta afectada**: [`tools/release.ps1`](file:///c:/dev/automatizacion-estilo/tools/release.ps1), [`home-assistant/www/witmind-ui-panel.js`](file:///c:/dev/automatizacion-estilo/home-assistant/www/witmind-ui-panel.js)
+- **Síntoma real**: El panel de Home Assistant quedaba con pantalla negra o cargaba indefinidamente con error 404 en la consola.
+- **Causa raíz técnica**: Vite genera por defecto `dist-panel/witmind-ui.html`. Sin embargo, el bridge espera `releases/<version>/index.html`. Cuando un desarrollador copiaba `dist-panel` a mano por Samba sin pasar por `tools/release.ps1`, subía `witmind-ui.html`.
+- **Solución implementada en `0.5.4`**:
+  1. El script `tools/release.ps1` automatiza la copia, el renombrado a `index.html` y la verificación de `assets/`.
+  2. Creación del skill `witmind-ha-release-guard` que prohíbe el copiado manual y exige comprobación HTTP 200 de `index.html` antes de promover `current.json`.
+- **Regla preventiva**: **Prohibido copiar carpetas manualmente por Samba**. Las releases siempre se compilan, renombran y transfieren con `tools/release.ps1`.
 
 ---
 
-### 6. Menú Hamburguesa Inoperativo en la Aplicación Aislada
-- **Versión con falla**: `0.1.5`
-- **Versión corregida**: `0.1.6`
-- **Ruta afectada**: [`src/showroom-panel.js`](file:///c:/dev/automatizacion-estilo/src/showroom-panel.js), [`src/ha/WitmindHaClient.ts`](file:///c:/dev/automatizacion-estilo/src/ha/WitmindHaClient.ts)
-- **Síntoma real**: Al pulsar el botón de menú (tres líneas) en la esquina superior izquierda de Witmind, el sidebar lateral nativo de Home Assistant no se abría.
-- **Causa raíz**: La aplicación corre dentro de un `iframe` y no tiene acceso directo al DOM de Home Assistant ni a `window.parent` por aislamiento.
-- **Solución en `0.1.6`**: Enviar mensaje postMessage `WITMIND_ACTION: toggle_menu`. El bridge `witmind-ui-panel.js` escucha el mensaje y despacha el evento nativo `hass-toggle-menu` en el contexto principal de Home Assistant.
-- **Regla preventiva**: Las acciones globales de Home Assistant (abrir menú, cambiar tema del sistema, navegar fuera del panel) deben solicitarse por protocolo `postMessage` al bridge.
+### FALLA G: Datos Ocultos en el Calendario Laboral (0.4.8 $\rightarrow$ 0.4.10)
+- **Ruta afectada**: [`src/witmind-admin-panel.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-admin-panel.ts)
+- **Síntoma real**: La vista del Calendario laboral mostraba `0 registros pregrabados`, a pesar de que el archivo `.storage/calendario_laboral` de Home Assistant contenía 15 feriados para 2026.
+- **Causa raíz técnica**: El componente backend de Home Assistant entrega la lista de registros en la respuesta WebSocket bajo la clave `"holidays"`. El frontend buscaba genéricamente `"records"`, `"items"` o `"events"`, por lo que consideraba vacía la respuesta.
+- **Solución implementada en `0.4.10`**:
+  Inspeccionar la respuesta real del backend e incluir `"holidays"` en el desempaquetado:
+  `const holidays = Array.isArray(response?.holidays) ? response.holidays : (response?.records || []);`
+- **Regla preventiva**: Al migrar o conectar un panel con un custom component de Home Assistant, inspeccionar directamente la respuesta serializada de la integración antes de diseñar el parser del frontend.
 
 ---
 
-### 7. Gráfica de Energía Vacía hasta Presionar Refrescar
-- **Versión con falla**: `0.5.2`
-- **Versión corregida**: `0.5.3`
-- **Ruta afectada**: [`src/showroom-panel.js`](file:///c:/dev/automatizacion-estilo/src/showroom-panel.js)
-- **Síntoma real**: Al entrar al panel, la tarjeta de energía aparecía vacía o con estado "Sin datos" hasta que pasaban 30 segundos o el usuario pulsaba refrescar manualmente.
-- **Causa raíz**: En Home Assistant, los estados de entidades se reciben de forma asíncrona tras el primer render. La entidad de energía llegaba milisegundos después del montaje y el temporizador de refresco esperaba 30s.
-- **Solución en `0.5.3`**: Detección de `energyAppeared`: si la entidad no existía en el primer render y llega en el siguiente snapshot, disparar de inmediato `_loadEnergyStatistics()` sin esperar el temporizador.
-- **Regla preventiva**: No asumir que todas las entidades están disponibles en el ciclo `connectedCallback()`. Programar carga inmediata reactiva ante la llegada tardía de la entidad principal.
+## 3. Checklist Preventivo de Oro (Para Futuros Desarrollos)
 
----
+Antes de promover una release o dar por concluido un cambio, verificar:
 
-## Protocolo Obligatorio para Registrar Nuevas Fallas
-
-Cada vez que se solucione un error en una release nueva:
-1. Añadir una nueva sección en este archivo con:
-   - Versión con falla y versión corregida.
-   - Ruta exacta del archivo.
-   - Síntoma visible en la vida real.
-   - Causa técnica raíz.
-   - Solución aplicada.
-   - Regla preventiva.
-2. Mantener la redacción sintetizada, directa y de alto nivel técnico.
+1. **Gestos táctiles**: ¿Probaste en móvil real o emulador con Touch Events? Asegúrate de que los Touch Events se escuchen en `window` y que `resolvePointerReleaseCoordinate` proteja contra coordenadas cero en Android.
+2. **Gestos con ratón**: ¿Probaste que los botones se pueden pulsar sin arrastrar? Verifica que `setPointerCapture` no se ejecute en `pointerdown`.
+3. **Persistencia del DOM**: ¿El botón o interruptor conserva el foco y la posición de scroll al encenderse? No llames a `render()` en updates reactivos; usa `_updateStatePresentation()`.
+4. **Contrato de release**: ¿Ejecutaste `tools/release.ps1` y comprobaste que existe `releases/<version>/index.html` respondiendo `HTTP 200`?
+5. **Idempotencia del bridge**: ¿El bridge reacciona a cambios de panel sin recargar innecesariamente el iframe si los parámetros son idénticos?
