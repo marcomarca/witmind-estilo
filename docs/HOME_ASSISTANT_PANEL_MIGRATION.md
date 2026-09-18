@@ -10,8 +10,8 @@ La instalación vigente en Home Assistant usa `Witmind Showroom` como entrada pr
 | --- | --- |
 | Panel bridge | `/config/www/witmind-ui-panel.js` |
 | Aplicación estable | `/config/www/witmind-ui/current.json` |
-| Release activa | `0.4.1` |
-| Releases conservadas | `0.1.0`–`0.1.10`, `0.2.0`, `0.2.1`, `0.3.0`, `0.3.1` y la antigua `1.0.0` |
+| Release activa | `0.5.7` |
+| Releases conservadas | Releases inmutables anteriores hasta `0.5.6` y la activa `0.5.7` |
 | Integración SQLite | `/config/custom_components/witmind_core/` |
 | Base de datos | `/config/witmind/witmind.db` |
 | Puerto DEV | `192.168.20.44:5174` |
@@ -52,6 +52,8 @@ tools/promote.ps1                      Cambio explícito de current.json
 tools/rollback.ps1                     Alias seguro de promote para rollback
 skills/witmind-ui/SKILL.md             Reglas de diseño y composición
 skills/witmind-ui/PATTERNS.md          Patrones reutilizables del proyecto
+.agents/skills/witmind-ha-release-guard/SKILL.md
+                                        Contrato de publicación y verificación del bridge
 docs/WITMIND_VISUAL_CONTRACT.md        Métricas visuales medidas
 ```
 

@@ -2,7 +2,7 @@ import "./showroom-panel.js";
 import "./witmind-operations-panel.ts";
 import "./witmind-admin-panel.ts";
 import "./witmind-energy-panel.ts";
-import { resolveSwipeAxis, resolveSwipeDirection, type SwipeAxis } from "./swipe-gesture.js";
+import { resolvePointerReleaseCoordinate, resolveSwipeAxis, resolveSwipeDirection, type SwipeAxis } from "./swipe-gesture.js";
 
 type PanelConfig = Record<string, unknown>;
 type HassAdapter = Record<string, unknown>;
@@ -182,7 +182,7 @@ class WitmindWorkspace extends HTMLElement {
   private _activeId = "showroom";
   private _pages: HTMLElement[] = [];
   private _track: HTMLElement | null = null;
-  private _drag: { pointerId: number; startX: number; startY: number; lastX: number; lastY: number; time: number; ignored: boolean; axis: SwipeAxis } | null = null;
+  private _drag: { pointerId: number; pointerType: string; startX: number; startY: number; lastX: number; lastY: number; time: number; ignored: boolean; axis: SwipeAxis } | null = null;
   private _dragging = false;
   private _theme: "dark" | "light" = this._loadTheme();
   private _boundResize = () => this._snap(false);
@@ -360,6 +360,7 @@ class WitmindWorkspace extends HTMLElement {
     ) || Boolean(target.closest("button,a,input,textarea,select,[data-no-swipe]"));
     this._drag = {
       pointerId: event.pointerId,
+      pointerType: event.pointerType,
       startX: event.clientX,
       startY: event.clientY,
       lastX: event.clientX,
@@ -373,8 +374,10 @@ class WitmindWorkspace extends HTMLElement {
 
   private _onPointerMove(event: PointerEvent) {
     if (!this._drag || this._drag.ignored || this._drag.pointerId !== event.pointerId || !this._track) return;
-    this._drag.lastX = event.clientX;
-    this._drag.lastY = event.clientY;
+    const coalesced = event.getCoalescedEvents?.() || [];
+    const latest = coalesced[coalesced.length - 1] || event;
+    this._drag.lastX = latest.clientX;
+    this._drag.lastY = latest.clientY;
     const dx = this._drag.lastX - this._drag.startX;
     const dy = this._drag.lastY - this._drag.startY;
     if (this._drag.axis === "pending") this._drag.axis = resolveSwipeAxis(dx, dy);
@@ -392,9 +395,9 @@ class WitmindWorkspace extends HTMLElement {
     if (!this._drag || this._drag.pointerId !== event.pointerId) return;
     const drag = this._drag;
     const cancelled = event.type === "pointercancel";
-    if (!cancelled && Number.isFinite(event.clientX) && Number.isFinite(event.clientY)) {
-      drag.lastX = event.clientX;
-      drag.lastY = event.clientY;
+    if (!cancelled) {
+      drag.lastX = resolvePointerReleaseCoordinate({ pointerType: drag.pointerType, lastMove: drag.lastX, release: event.clientX });
+      drag.lastY = resolvePointerReleaseCoordinate({ pointerType: drag.pointerType, lastMove: drag.lastY, release: event.clientY });
     }
     const dx = drag.lastX - drag.startX;
     const elapsed = Math.max(1, performance.now() - this._drag.time);

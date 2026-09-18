@@ -1,0 +1,4 @@
+interface:
+  display_name: "Witmind HA Release Guard"
+  short_description: "Evita releases rotas del panel Home Assistant"
+  default_prompt: "Use $witmind-ha-release-guard para publicar y verificar una release Witmind sin romper el bridge."

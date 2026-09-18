@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveSwipeAxis, resolveSwipeDirection } from "../../swipe-gesture.js";
+import { resolvePointerReleaseCoordinate, resolveSwipeAxis, resolveSwipeDirection } from "../../swipe-gesture.js";
 
 describe("workspace swipe gesture", () => {
   it("maps a finger movement to the left to the next panel", () => {
@@ -25,5 +25,17 @@ describe("workspace swipe gesture", () => {
   it("accepts a deliberate short fling in both directions", () => {
     expect(resolveSwipeDirection({ axis: "horizontal", cancelled: false, dx: -30, elapsedMs: 40 })).toBe(1);
     expect(resolveSwipeDirection({ axis: "horizontal", cancelled: false, dx: 30, elapsedMs: 40 })).toBe(-1);
+  });
+
+  it("preserves both mobile directions when pointerup returns zeroed coordinates", () => {
+    const leftRelease = resolvePointerReleaseCoordinate({ pointerType: "touch", lastMove: 110, release: 0 });
+    const rightRelease = resolvePointerReleaseCoordinate({ pointerType: "touch", lastMove: 250, release: 0 });
+
+    expect(resolveSwipeDirection({ axis: "horizontal", cancelled: false, dx: leftRelease - 320, elapsedMs: 180 })).toBe(1);
+    expect(resolveSwipeDirection({ axis: "horizontal", cancelled: false, dx: rightRelease - 80, elapsedMs: 180 })).toBe(-1);
+  });
+
+  it("keeps the precise pointerup coordinate for mouse dragging", () => {
+    expect(resolvePointerReleaseCoordinate({ pointerType: "mouse", lastMove: 120, release: 96 })).toBe(96);
   });
 });

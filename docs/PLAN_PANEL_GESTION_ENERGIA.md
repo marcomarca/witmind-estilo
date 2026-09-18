@@ -110,6 +110,11 @@ No se asignarán valores inventados al reflector ni al Lobby. Esos circuitos sí
 | 0.5.0 | ☑ | ☑ | ☑ | ☑ Publicado | ☑ 10/10 | Funcionamiento autenticado confirmado |
 | 0.5.1 | ☑ | ☑ | ☑ | ☑ Promovido | ☑ 15/15 + navegador | Gesto táctil bidireccional corregido |
 | 0.5.2 | ☑ | ☑ | ☑ | ☑ Promovido | ☑ 15/15 + 588 px | Título de Showroom restaurado en tablet |
+| 0.5.3 | ☑ | ☑ | ☑ | ☑ Promovido | ☑ 15/15 + 588/758 px | Cabeceras tablet de Oficinas, Grabación, Energía y Calendario unificadas |
+| 0.5.4 | ☑ | ☑ | ☑ | ☑ Promovido | ☑ HTTP extremo a extremo | Entrada `index.html` restaurada para el bridge |
+| 0.5.5 | ☑ | ☑ | ☑ | ☑ Promovido | ☑ 15/15 + 4 auditorías responsive | Cabeceras de Control y Notificaciones unificadas |
+| 0.5.6 | ☑ | ☑ | ☑ | ☑ Promovido | ☑ 15/15 + auditoría 758 px | Temperatura y humedad alineadas en las zonas de Oficinas |
+| 0.5.7 | ☑ | ☑ | ☑ | ☑ Promovido | ☑ 17/17 + navegador móvil | Gesto bidireccional estabilizado ante `pointerup` móvil con coordenadas cero |
 
 ### Evidencia de despliegue
 
@@ -133,3 +138,40 @@ No se asignarán valores inventados al reflector ni al Lobby. Esos circuitos sí
 - Alcance: únicamente `panel_kind: showroom`; las demás vistas quedan sin cambios hasta su revisión individual.
 - Resultado a 588 × 829 px: “Control operativo / Showroom” visible, navegación debajo y sin desbordamiento horizontal en temas claro y oscuro.
 - Backup: `\\192.168.20.232\config\backups\showroom-tablet-title-0.5.2-20260918-101212`.
+
+### Consistencia de cabeceras tablet 0.5.3
+
+- Oficinas y Sala de grabación mantienen marca, reloj y tema en una sola fila, con título y resumen de circuitos siempre visibles.
+- Gestión de energía apila el encabezado analítico y el selector de período a `≤760 px` sin ocultar el reloj.
+- Calendario laboral usa la misma cabecera Witmind que Showroom y elimina la duplicación del título.
+- Alcance deliberado: Notificaciones y Control general no se modificaron en esta release.
+- Verificación visual: 588 × 829 px y 758 × 588 px, sin desbordamiento horizontal.
+- Backup: `\\192.168.20.232\config\backups\tablet-header-consistency-0.5.3-20260918-104000`.
+
+### Corrección de entrada del bridge 0.5.4
+
+- Causa: el despliegue manual de `0.5.3` copió `dist-panel/witmind-ui.html` con su nombre de build, pero el contrato estable del bridge solicita `releases/<version>/index.html`.
+- Solución: release inmutable nueva generada mediante `tools/release.ps1`, que renombra correctamente la entrada a `index.html`; no se modificó la release defectuosa.
+- Verificación: `current.json`, `index.html`, JavaScript y CSS responden HTTP 200 desde `192.168.20.232:8123`.
+- Backup: `\\192.168.20.232\config\backups\bridge-entry-fix-0.5.4-20260918-104500`.
+
+### Cabeceras de Control y Notificaciones 0.5.5
+
+- Control general usa la misma fila superior de marca, reloj y tema que las vistas operativas aprobadas.
+- Notificaciones Witmind reemplaza la cabecera administrativa antigua por la cabecera Witmind y elimina el título duplicado.
+- Verificación visual en 588 × 829 px y 758 × 588 px, en temas claro y oscuro, sin desbordamiento y con alineación vertical exacta.
+- La skill local `.agents/skills/witmind-ha-release-guard` obliga a publicar mediante `tools/release.ps1` y validar `index.html` más sus assets antes de promover.
+- Backup: `\\192.168.20.232\config\backups\control-notifications-header-0.5.5-20260918-105700`.
+
+### Métricas ambientales de Oficinas 0.5.6
+
+- Temperatura y humedad quedan ancladas a la esquina superior derecha del encabezado de Gerencia y Oficinas grandes.
+- A menos de 420 px pasan a una fila propia para evitar solapamientos; a la resolución objetivo permanecen alineadas con el nombre de la zona.
+- Verificación visual y geométrica a 758 × 829 px.
+- Backup: `\\192.168.20.232\config\backups\office-environment-layout-0.5.6-20260918-110600`.
+
+### Gesto táctil móvil 0.5.7
+
+- Causa: ciertos navegadores Android/WebView entregan coordenadas cero en `pointerup`, sustituyendo la última posición real y pudiendo invertir el sentido calculado.
+- Solución: tacto y lápiz conservan la última muestra válida de `pointermove`; mouse mantiene la coordenada precisa de liberación. También se procesan las muestras coalescentes disponibles.
+- Verificación en navegador a 390 × 844 px: derecha→izquierda avanza y el gesto inverso retrocede aun con `pointerup` simulado en cero.

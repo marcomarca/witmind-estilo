@@ -7,6 +7,18 @@ export const SWIPE_FLING_DISTANCE_PX = 24;
 export const SWIPE_VELOCITY_PX_MS = 0.45;
 export const SWIPE_AXIS_BIAS = 1.15;
 
+export function resolvePointerReleaseCoordinate(input: {
+  pointerType: string;
+  lastMove: number;
+  release: number;
+}): number {
+  // Android/WebView can report clientX/clientY as zero on pointerup. Touch and
+  // pen gestures therefore finish at the last real pointermove sample; mouse
+  // releases keep their final coordinate for precise drag behaviour.
+  if (input.pointerType === "mouse" && Number.isFinite(input.release)) return input.release;
+  return input.lastMove;
+}
+
 export function resolveSwipeAxis(dx: number, dy: number): SwipeAxis {
   const horizontal = Math.abs(dx);
   const vertical = Math.abs(dy);

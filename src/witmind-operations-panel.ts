@@ -275,7 +275,8 @@ class WitmindOperationsPanel extends HTMLElement {
       .eyebrow { color: var(--primary); letter-spacing: .13em; }
       .brand h1 { color: var(--text-primary); font-weight: 800; }
       :host([data-kind="offices"]) .topbar-meta,
-      :host([data-kind="recording"]) .topbar-meta {
+      :host([data-kind="recording"]) .topbar-meta,
+      :host([data-kind="control"]) .topbar-meta {
         display: flex;
         align-items: center;
         justify-content: flex-end;
@@ -305,10 +306,19 @@ class WitmindOperationsPanel extends HTMLElement {
       .offices-section-heading h2 { margin: 4px 0 0; color: var(--text-primary); font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
       .offices-section-heading > span { color: var(--text-tertiary); font-size: 11px; font-weight: 700; }
       .office-section { min-width: 0; padding: 18px; }
-      .office-section .section-heading { min-height: 46px; }
+      .office-section .section-heading {
+        min-height: 46px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .office-section .section-heading > div:first-child { min-width: 0; }
       .office-section .section-heading h2 { margin: 4px 0 0; color: var(--text-primary); font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
-      .area-meta { display: flex; align-items: center; gap: 6px; color: var(--text-tertiary); font-size: 10px; font-weight: 700; }
-      .area-meta span { padding: 5px 8px; border: 1px solid var(--border-default); border-radius: var(--radius-pill); background: var(--surface-control); white-space: nowrap; }
+      .area-meta { min-height: 25px; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; color: var(--text-tertiary); font-size: 10px; font-weight: 700; }
+      .area-meta:empty { display: none; }
+      .area-meta span { min-height: 25px; display: inline-flex; align-items: center; padding: 5px 9px; border: 1px solid var(--border-default); border-radius: var(--radius-pill); background: var(--surface-control); white-space: nowrap; line-height: 1; }
       .area-description { margin: -4px 0 12px; color: var(--text-tertiary); font-size: 10px; line-height: 1.4; }
       .device-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
       .hero {
@@ -407,7 +417,8 @@ class WitmindOperationsPanel extends HTMLElement {
       @media (max-width: 960px) { .status-strip { display: none; } .lighting-layout { grid-template-columns: 1fr; } }
       @media (max-width: 760px) {
         :host([data-kind="offices"]) .topbar,
-        :host([data-kind="recording"]) .topbar {
+        :host([data-kind="recording"]) .topbar,
+        :host([data-kind="control"]) .topbar {
           min-height: 68px;
           display: grid;
           grid-template-columns: minmax(0, 1fr) auto;
@@ -416,35 +427,45 @@ class WitmindOperationsPanel extends HTMLElement {
           padding: 10px 14px;
         }
         :host([data-kind="offices"]) .topbar-start,
-        :host([data-kind="recording"]) .topbar-start {
+        :host([data-kind="recording"]) .topbar-start,
+        :host([data-kind="control"]) .topbar-start {
           min-width: 0;
           display: flex;
           align-items: center;
           gap: 10px;
         }
         :host([data-kind="offices"]) .brand,
-        :host([data-kind="recording"]) .brand { display: flex; align-items: baseline; gap: 0; }
+        :host([data-kind="recording"]) .brand,
+        :host([data-kind="control"]) .brand { display: flex; align-items: baseline; gap: 0; }
         :host([data-kind="offices"]) .brand > span,
         :host([data-kind="recording"]) .brand > span,
+        :host([data-kind="control"]) .brand > span,
         :host([data-kind="offices"]) .header-weather,
-        :host([data-kind="recording"]) .header-weather { display: none; }
+        :host([data-kind="recording"]) .header-weather,
+        :host([data-kind="control"]) .header-weather { display: none; }
         :host([data-kind="offices"]) .menu-button,
         :host([data-kind="recording"]) .menu-button,
+        :host([data-kind="control"]) .menu-button,
         :host([data-kind="offices"]) .theme-button,
-        :host([data-kind="recording"]) .theme-button { width: 44px; height: 44px; }
+        :host([data-kind="recording"]) .theme-button,
+        :host([data-kind="control"]) .theme-button { width: 44px; height: 44px; }
         :host([data-kind="offices"]) .header-clock strong,
-        :host([data-kind="recording"]) .header-clock strong { font-size: 24px; }
+        :host([data-kind="recording"]) .header-clock strong,
+        :host([data-kind="control"]) .header-clock strong { font-size: 24px; }
         :host([data-kind="offices"]) .workspace-heading,
-        :host([data-kind="recording"]) .workspace-heading {
+        :host([data-kind="recording"]) .workspace-heading,
+        :host([data-kind="control"]) .workspace-heading {
           display: flex;
           align-items: flex-end;
           gap: 14px;
           margin-bottom: 16px;
         }
         :host([data-kind="offices"]) .workspace-heading h1,
-        :host([data-kind="recording"]) .workspace-heading h1 { font-size: 26px; }
+        :host([data-kind="recording"]) .workspace-heading h1,
+        :host([data-kind="control"]) .workspace-heading h1 { font-size: 26px; }
         :host([data-kind="offices"]) .workspace-summary,
-        :host([data-kind="recording"]) .workspace-summary { margin-left: auto; text-align: right; }
+        :host([data-kind="recording"]) .workspace-summary,
+        :host([data-kind="control"]) .workspace-summary { margin-left: auto; text-align: right; }
       }
       @media (max-width: 700px) {
         .brand { display: block; }
@@ -460,6 +481,10 @@ class WitmindOperationsPanel extends HTMLElement {
         .dashboard { padding: 14px; }
         .device-grid { grid-template-columns: 1fr; }
         .control-actions { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 420px) {
+        .office-section .section-heading { grid-template-columns: 1fr; gap: 8px; }
+        .area-meta { justify-content: flex-start; }
       }
       @media (min-width: 701px) and (max-width: 1100px) { .control-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     `;
