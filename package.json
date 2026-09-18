@@ -9,7 +9,9 @@
     "build:panel": "tsc && vite build --mode panel",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "ha:sensors": "node --experimental-strip-types tools/inspect-ha-sensors.mjs",
+    "debug:panel": "node --experimental-strip-types tools/debug-building-panel.mjs"
   },
   "dependencies": {
     "@fontsource-variable/manrope": "^5.1.0",
