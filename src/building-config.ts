@@ -177,17 +177,17 @@ export const BUILDING_ZONES: BuildingZone[] = [
 
 export const BUILDING_ZONE_OVERLAYS: Record<BuildingFloor, BuildingZoneOverlay[]> = {
   ground: [
-    { zoneId: "ground.witronix_admin", left: 8, top: 12, width: 22 },
-    { zoneId: "ground.showroom", left: 8, top: 54, width: 23 },
-    { zoneId: "ground.lobby", left: 39, top: 48, width: 22 },
-    { zoneId: "ground.grabacion", left: 67, top: 57, width: 22 },
+    { zoneId: "ground.witronix_admin", left: 8, top: 13, width: 22 },
+    { zoneId: "ground.showroom", left: 8, top: 47, width: 22 },
+    { zoneId: "ground.lobby", left: 38, top: 51, width: 21 },
+    { zoneId: "ground.grabacion", left: 65, top: 52, width: 15 },
   ],
   upper: [
-    { zoneId: "upper.office_large", left: 8, top: 22, width: 25 },
-    { zoneId: "upper.witronix", left: 8, top: 55, width: 20 },
-    { zoneId: "upper.mindtec", left: 8, top: 9, width: 20 },
-    { zoneId: "upper.sala_multiuso", left: 37, top: 58, width: 23 },
-    { zoneId: "upper.taller", left: 48, top: 16, width: 18 },
+    { zoneId: "upper.mindtec", left: 8, top: 14, width: 20 },
+    { zoneId: "upper.witronix", left: 8, top: 50, width: 20 },
+    { zoneId: "upper.taller", left: 41, top: 16, width: 16 },
+    { zoneId: "upper.sala_multiuso", left: 38, top: 50, width: 18 },
+    { zoneId: "upper.office_large", left: 62, top: 50, width: 20 },
   ],
 };
 

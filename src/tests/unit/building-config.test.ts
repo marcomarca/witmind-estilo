@@ -49,4 +49,16 @@ describe("building configuration", () => {
     expect(BUILDING_ZONE_OVERLAYS.ground.some((overlay) => overlay.zoneId === witronixAdmin?.id)).toBe(true);
     expect(BUILDING_ZONE_OVERLAYS.upper.some((overlay) => overlay.zoneId === officeLarge?.id)).toBe(true);
   });
+
+  it("ensures all zone overlays stay strictly bounded within blueprint dimensions", () => {
+    for (const floor of ["ground", "upper"] as const) {
+      for (const overlay of BUILDING_ZONE_OVERLAYS[floor]) {
+        expect(overlay.left).toBeGreaterThanOrEqual(0);
+        expect(overlay.top).toBeGreaterThanOrEqual(0);
+        expect(overlay.left + (overlay.width || 21)).toBeLessThanOrEqual(100);
+      }
+    }
+    const upperOffice = BUILDING_ZONE_OVERLAYS.upper.find((o) => o.zoneId === "upper.office_large");
+    expect(upperOffice?.left).toBeGreaterThan(50); // Situated in Mindtec Admin (right side of floor plan)
+  });
 });
