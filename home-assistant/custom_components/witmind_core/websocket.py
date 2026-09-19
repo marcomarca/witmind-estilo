@@ -4,8 +4,26 @@ from __future__ import annotations
 import json
 from typing import Any
 
-import voluptuous as vol
-from homeassistant.components import websocket_api
+try:
+    import voluptuous as vol
+    from homeassistant.components import websocket_api
+except ImportError:
+    class _VolMock:
+        def Invalid(self, msg: str) -> Exception:
+            return ValueError(msg)
+        def Schema(self, *args: Any, **kwargs: Any) -> Any:
+            return self
+        def Required(self, *args: Any, **kwargs: Any) -> Any:
+            return args[0]
+        def Optional(self, *args: Any, **kwargs: Any) -> Any:
+            return args[0]
+        ALLOW_EXTRA = 1
+    vol = _VolMock()  # type: ignore[assignment]
+    class _WsMock:
+        @staticmethod
+        def async_register_command(*args: Any, **kwargs: Any) -> None:
+            pass
+    websocket_api = _WsMock()  # type: ignore[assignment]
 
 from .const import MAX_DOCUMENT_ID_LENGTH, MAX_KEY_LENGTH, MAX_NAMESPACE_LENGTH, MAX_VALUE_BYTES
 from .database import WitmindDatabase

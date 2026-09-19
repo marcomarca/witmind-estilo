@@ -1,9 +1,20 @@
 DOMAIN = "witmind_core"
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 DB_DIRECTORY = "/config/witmind"
 DB_PATH = f"{DB_DIRECTORY}/witmind.db"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 MAX_KEY_LENGTH = 160
 MAX_NAMESPACE_LENGTH = 80
 MAX_DOCUMENT_ID_LENGTH = 160
 MAX_VALUE_BYTES = 512 * 1024
+
+# Calendario Laboral Constants
+CALENDAR_DOMAIN = "witmind_calendar"
+CALENDAR_ENTITY_ID = "binary_sensor.dia_no_laborable"
+EVENT_CALENDAR_UPDATED = "witmind_calendar_updated"
+LEGACY_EVENT_UPDATED = "calendario_laboral_updated"
+CALENDAR_SCHEMA_VERSION = 1
+
+MAX_HOLIDAY_NAME_LENGTH = 120
+MAX_HOLIDAY_DESCRIPTION_LENGTH = 500
+MAX_HOLIDAY_ID_LENGTH = 128

@@ -24,6 +24,10 @@ class WitmindDatabase:
         connection.execute("PRAGMA foreign_keys=ON")
         return connection
 
+    def connect(self) -> sqlite3.Connection:
+        """Retorna una conexión activa configurada con WAL y foreign keys."""
+        return self._connect()
+
     def _initialize(self) -> None:
         Path(self.path).parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as db:
@@ -47,6 +51,38 @@ class WitmindDatabase:
                   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
                   PRIMARY KEY (namespace, document_id)
                 );
+
+                -- Calendario Laboral SQLite 3
+                CREATE TABLE IF NOT EXISTS work_calendar_holidays (
+                  id TEXT PRIMARY KEY,
+                  date TEXT NOT NULL UNIQUE
+                    CHECK (date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+                  name TEXT NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 120),
+                  description TEXT NOT NULL DEFAULT '' CHECK (length(description) <= 500),
+                  active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+                  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_work_calendar_active_date
+                  ON work_calendar_holidays(active, date);
+
+                CREATE TABLE IF NOT EXISTS work_calendar_meta (
+                  key TEXT PRIMARY KEY,
+                  value TEXT NOT NULL,
+                  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+
+                CREATE TABLE IF NOT EXISTS work_calendar_audit (
+                  sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                  operation TEXT NOT NULL,
+                  record_id TEXT,
+                  record_date TEXT,
+                  actor_user_id TEXT,
+                  before_json TEXT,
+                  after_json TEXT,
+                  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
                 """
             )
             db.execute("INSERT OR REPLACE INTO schema_meta(key, value) VALUES('schema_version', ?)", (str(SCHEMA_VERSION),))
@@ -58,7 +94,14 @@ class WitmindDatabase:
         with self._connect() as db:
             count = db.execute("SELECT COUNT(*) FROM kv").fetchone()[0]
             documents = db.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
-        return {"path": self.path, "schema_version": SCHEMA_VERSION, "kv_count": count, "document_count": documents}
+            holidays = db.execute("SELECT COUNT(*) FROM work_calendar_holidays").fetchone()[0]
+        return {
+            "path": self.path,
+            "schema_version": SCHEMA_VERSION,
+            "kv_count": count,
+            "document_count": documents,
+            "holidays_count": holidays,
+        }
 
     async def async_kv_get(self, namespace: str, key: str) -> Any:
         return await self.hass.async_add_executor_job(self._kv_get, namespace, key)

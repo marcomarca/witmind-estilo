@@ -341,6 +341,7 @@
           "recorder/get_statistics_metadata", "recorder/statistics_during_period",
           "history/history_during_period",
           "calendario_laboral/get", "calendario_laboral/update", "calendario_laboral/delete", "calendario_laboral/add",
+          "witmind_calendar/get", "witmind_calendar/health", "witmind_calendar/add", "witmind_calendar/update", "witmind_calendar/delete", "witmind_calendar/import/preview", "witmind_calendar/import/commit", "witmind_calendar/mode/set",
           "witmind_notifications/rules/list", "witmind_notifications/targets/list", "witmind_notifications/sensors/list", "witmind_notifications/history/list",
           "witmind_notifications/targets/alias/set", "witmind_notifications/rules/create", "witmind_notifications/rules/update", "witmind_notifications/rules/toggle", "witmind_notifications/rules/delete", "witmind_notifications/test",
         ];

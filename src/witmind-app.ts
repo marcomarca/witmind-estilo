@@ -50,6 +50,10 @@ const ENTITY_IDS = [
   "switch.4gang_switch_sala_grabacion_interruptor_2",
   "switch.4gang_switch_sala_grabacion_interruptor_3",
   "switch.4gang_switch_sala_grabacion_interruptor_4",
+  "binary_sensor.dia_no_laborable",
+  "binary_sensor.bloqueo_automatizaciones_laborales",
+  "automation.taller_ciclo_10s",
+  "automation.witmind_bloqueo_laboral_apagado_seguro",
 ];
 
 const collectEntityIds = (value: unknown, result = new Set<string>()) => {

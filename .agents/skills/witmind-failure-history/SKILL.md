@@ -37,10 +37,31 @@ description: Registro histórico sintetizado y cronológico de fallas, regresion
 | `0.6.0` | `0.6.1` | [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts), [`src/witmind-workspace.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-workspace.ts) | La interfaz parecía cambiar de tamaño al alternar entre Planta Baja y Planta Alta. | Cada planta tenía distinta cantidad de filas de circuitos; esto modificaba la altura del documento y la aparición de la barra vertical. |
 | `0.6.1` | `0.6.2` | [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts), [`src/building-config.ts`](file:///c:/dev/automatizacion-estilo/src/building-config.ts) | Circuitos por zona mostraba potencias incorrectas o no disponibles y el switch encendía indiscriminadamente una zona completa. | La potencia MQTT en kW se rotulaba como W, el medidor real del Lobby no estaba mapeado y el control no distinguía perfiles operativos de estados parciales. |
 | `0.6.2` | `0.6.3` | [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts), [`src/building-config.ts`](file:///c:/dev/automatizacion-estilo/src/building-config.ts) | Tarjetas flotantes sobre el plano desalineadas al cambiar entre desktop, tablet y móvil; Mindtec y Oficina grande superpuestas en la misma sala. | Letterboxing del plano desplazaba `.floor-overlays` al calcular porcentajes sobre `.floor-viewport` y no sobre el plano; coordenadas de habitaciones no coincidían con el plano arquitectónico. |
+| `0.6.4` | `0.6.5` | [`src/witmind-admin-panel.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-admin-panel.ts), [`src/notifications-model.ts`](file:///c:/dev/automatizacion-estilo/src/notifications-model.ts) | Pérdida de editor en notificaciones, acumulación de suscripciones y bloqueo para reparar 361 errores de identidad obsoleta. | Interfaz unificada carecía de wizard de 4 pasos, acumulaba listeners de WebSocket en cada `_load()` y no preservaba inputs ante eventos concurrentes de Home Assistant. |
+| `0.6.5` | `0.6.6` | [`src/witmind-admin-panel.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-admin-panel.ts), [`src/notifications-model.ts`](file:///c:/dev/automatizacion-estilo/src/notifications-model.ts) | Contraste ilegible en modo claro, colapso de icono de papelera y recorte de botones de acción en modales móviles. | Colores de métricas hardcodeados en blanco sobre fondo claro, SVG de papelera sin dimensiones explícitas y modal sin flexbox vertical con scroll interno. |
 
 ---
 
 ## 2. Fichas Técnicas Detalladas de las Fallas Críticas
+
+---
+
+### FALLA K: Defectos Visuales en Notificaciones: Contraste Claro, Iconos y Recorte Mobile (0.6.5 $\rightarrow$ 0.6.6)
+- **Rutas afectadas**: [`src/witmind-admin-panel.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-admin-panel.ts) y [`src/notifications-model.ts`](file:///c:/dev/automatizacion-estilo/src/notifications-model.ts).
+- **Síntoma real**: En modo claro, las temperaturas y valores de regla eran texto blanco sobre fondo blanco (completamente invisible); el botón de eliminar tarjeta colapsaba a un círculo vacío; en dispositivos móviles (390px) el wizard de reglas empujaba los botones "Siguiente"/"Guardar" fuera de la pantalla; y la badge de estado duplicaba la palabra "recordatorio".
+- **Causa raíz técnica**:
+  1. `.rule-metrics strong` utilizaba `#f5f6f4` fijo sin selector específico para `:host([data-theme=light])`.
+  2. El botón de eliminar carecía de clases con layout `inline-flex` y su SVG carecía de `width`/`height` explícitos.
+  3. `.modal-card` usaba `overflow-y: auto` en todo el contenedor en lugar de desacoplar `.wizard-body` con scroll independiente y `wizard-actions` fijos.
+  4. `deriveRuleStatus` retornaba `label: "Alerta activa · recordatorio"` mientras `countdownMarkup` anexaba nuevamente `" · recordatorio"`.
+- **Solución implementada en `0.6.6`**:
+  1. Definición completa de reglas de alto contraste para modo claro (`#172129` para valores y títulos, `#556268` para etiquetas).
+  2. Adopción de `.icon-btn.danger` y dimensiones explícitas de 16x16 px para todos los SVGs de acción.
+  3. Contenedor modal con `display: flex; flex-direction: column; max-height: min(90vh, 90dvh)` y `.wizard-body { flex: 1 1 auto; overflow-y: auto; }`.
+  4. Normalización del label de estado a `"Alerta activa"`.
+  5. Suite de inspección visual multiresolución automatizada (`tools/debug-notifications-appearance.mjs`) que genera 40 capturas a escala 2x verificando 0 desbordamientos.
+- **Regla preventiva**: Toda interfaz con diálogos modales en móvil debe aislar el cuerpo del formulario con scroll propio respecto a las acciones fijas inferiores, y todo SVG de acción debe tener dimensiones CSS explícitas.
+
 
 ---
 
@@ -191,3 +212,21 @@ Antes de promover una release o dar por concluido un cambio, verificar:
   4. Overlays por planta con circuitos, potencia y ambiente reales, sin mezclar plantas.
   5. Verificación reproducible con `node tools/verify-building-live-overlays.mjs`.
 - **Regla preventiva**: Nunca presentar potencia sin normalizar `unit_of_measurement`, y nunca usar un interruptor agregado sin declarar su perfil exacto de entidades ON/OFF.
+
+---
+
+### FALLA J: Regresión en Editor de Notificaciones y Fuga de Listeners (0.6.4 $\rightarrow$ 0.6.5)
+- **Rutas afectadas**: [`src/witmind-admin-panel.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-admin-panel.ts), [`src/notifications-model.ts`](file:///c:/dev/automatizacion-estilo/src/notifications-model.ts) y [`src/notifications-types.ts`](file:///c:/dev/automatizacion-estilo/src/notifications-types.ts).
+- **Síntoma real**: Al migrar la ruta `/notificaciones` a `witmind-admin-panel.ts`, la interfaz perdió el wizard de creación y edición en 4 pasos, sólo mostraba 12 eventos del historial y acumulaba listeners de `witmind_notifications_updated` en cada recarga. Esto impedía editar destinatarios y provocó que 361 alertas cayeran en error de identidad obsoleta (`stale_identity`).
+- **Causa raíz técnica**:
+  1. El panel unificado sólo implementaba un subconjunto mínimo sin editor ni sincronización con las APIs completas de `witmind_notifications`.
+  2. Cada ejecución de `_load()` registraba un nuevo listener WebSocket en Home Assistant sin validar si ya existía una suscripción activa.
+  3. Los eventos concurrentes de entidades en segundo plano desencadenaban `_render()` indiscriminado que destruía el Shadow DOM y reseteaba los formularios en edición.
+- **Solución implementada en `0.6.5`**:
+  1. Portar el 100% de paridad funcional del panel clásico v1.0.7 con estética Witmind Signature (pestañas Reglas, Dispositivos e Historial; wizard en 4 pasos con previsualización en vivo; filtros de historial por tipo/estado).
+  2. Implementación de una sola suscripción WebSocket por ciclo de vida con debounce de 80 ms, refrescando únicamente `rules/list` e `history/list` (hasta 150 registros).
+  3. Barrera de interacción (`_hasLiveInteraction`) que inhibe la reconstrucción del DOM mientras un editor, diálogo o modal esté abierto.
+  4. Watchdog de cuentas regresivas cada segundo sobre nodos `data-*` específicos sin modificar el árbol de componentes.
+  5. Verificación automatizada con `node tools/verify-notifications-panel.mjs`.
+- **Regla preventiva**: En Web Components que contengan formularios o editores de reglas, el refresco de entidades de Home Assistant jamás debe llamar a `_render()` completo si hay modales o inputs activos; usar barreras de interacción y parches de nodos selectivos.
+
