@@ -14,4 +14,16 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 
+# Build outputs
+dist/
+dist-panel/
+
+# Archives & ChatGPT Exports (never commit)
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+.temp-chatgpt-export/
+exports/
+chatgpt-export/
 automatizacion-estilo.zip

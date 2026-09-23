@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "ha:sensors": "node --experimental-strip-types tools/inspect-ha-sensors.mjs",
-    "debug:panel": "node --experimental-strip-types tools/debug-building-panel.mjs"
+    "debug:panel": "node --experimental-strip-types tools/debug-building-panel.mjs",
+    "export:chatgpt": "bun tools/export-chatgpt-bundle.mjs"
   },
   "dependencies": {
     "@fontsource-variable/manrope": "^5.1.0",

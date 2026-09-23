@@ -19,6 +19,7 @@ Guía consolidada con los comandos más frecuentes y típicos del repositorio, c
 | **Telemetría HA** | `bun run ha:sensors` | `npm run ha:sensors` | Imprime estado vivo, potencias y confort de HA |
 | **Build app** | `bun run build` | `npm run build` | Compila TypeScript y empaqueta app general |
 | **Build panel HA** | `bun run build:panel` | `npm run build:panel` | Genera `dist-panel/witmind-ui.html` para Home Assistant |
+| **Exportar ChatGPT** | `bun run export:chatgpt` | `npm run export:chatgpt` | Genera ZIP ultra-ligero (`< 500 KB`) con todo el código para ChatGPT |
 | **Debug panel** | `bun run debug:panel` | `npm run debug:panel` | Servidor local 5199 + inspección con Playwright |
 | **Previsualizar** | `bun run preview` | `npm run preview` | Servidor local sirviendo `dist/` |
 | **Release HA** | `powershell -File tools/release.ps1 -Version X.Y.Z` | — | Empaqueta y copia release inmutable |
@@ -268,6 +269,21 @@ Test-NetConnection -ComputerName 192.168.20.232 -Port 8123
 ```powershell
 Test-Path "\\192.168.20.232\config\www\witmind-ui"
 ```
+
+---
+
+## 📦 10. Empaquetado y Exportación para Análisis en LLM / ChatGPT
+
+### Exportar paquete limpio y ultra-ligero
+Genera un archivo `.zip` que preserva toda la jerarquía de carpetas del proyecto, incluyendo solo código fuente, configuraciones, documentación y tests, excluyendo automáticamente `node_modules/`, `.git/`, compilados `dist/`, imágenes pesadas y releases:
+
+```bash
+bun run export:chatgpt
+```
+
+- **Archivo generado**: `witmind-chatgpt-bundle.zip` (~450 KB).
+- **Seguridad Git**: Todos los archivos `*.zip` están protegidos en `.gitignore` para que nunca se suban por error al repositorio.
+- **Uso**: Arrastra el archivo `witmind-chatgpt-bundle.zip` directamente a la interfaz web de ChatGPT para que pueda descomprimirlo e inspeccionar todo el árbol de código.
 
 ---
 
