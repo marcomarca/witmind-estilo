@@ -230,3 +230,20 @@ Antes de promover una release o dar por concluido un cambio, verificar:
   5. Verificación automatizada con `node tools/verify-notifications-panel.mjs`.
 - **Regla preventiva**: En Web Components que contengan formularios o editores de reglas, el refresco de entidades de Home Assistant jamás debe llamar a `_render()` completo si hay modales o inputs activos; usar barreras de interacción y parches de nodos selectivos.
 
+---
+
+### MEJORA K: Optimización de Planos 2D y Soporte Dinámico de Temas Claro/Oscuro (0.6.6 $\rightarrow$ 0.6.7)
+- **Rutas afectadas**: [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts), [`public/building/`](file:///c:/dev/automatizacion-estilo/public/building/) y [`tools/optimize-floor-plans.mjs`](file:///c:/dev/automatizacion-estilo/tools/optimize-floor-plans.mjs).
+- **Síntoma / Necesidad**: Los planos 2D pesaban ~5.7 MB en total, ralentizaban la carga inicial en móviles sobre Home Assistant y sólo existía soporte monocromo/fijo sin adaptación al tema claro/oscuro del usuario ni consideración de la relación de aspecto no estándar de Planta Alta (1448x1086 vs 1536x1024).
+- **Causa raíz técnica**:
+  1. Las imágenes originales en PNG no tenían cuantización de paleta ni compresión WebP.
+  2. El componente sólo referenciaba una ruta fija de imagen por planta (`./building/planta-baja.png`).
+  3. El contenedor `.floor-stage` forzaba un `aspect-ratio: 1536 / 1024` rígido para ambas plantas, causando ligera distorsión en Planta Alta.
+- **Solución implementada en `0.6.7`**:
+  1. Pipeline de optimización con Sharp (`tools/optimize-floor-plans.mjs`): generación de WebP ultra-ligero (q90, ~60-100 KB, ahorro del 95%) y PNG paletizado de alta fidelidad (q95, ahorro del 50-60%) para temas dark y light.
+  2. Renderizado dinámico en `<picture>` con `<source type="image/webp">` y fallback `<img>` reactivo al tema actual (`this._theme`).
+  3. `aspect-ratio` dinámico en `.floor-stage` (1536/1024 para Planta Baja y 1448/1086 para Planta Alta).
+  4. Pruebas y verificación HTTP 200 en Home Assistant OS.
+- **Regla preventiva**: Los planos arquitectónicos deben servirse siempre con formato dual WebP/PNG y su contenedor debe reflejar la relación de aspecto exacta de la planta para evitar deformaciones anamórficas.
+
+
