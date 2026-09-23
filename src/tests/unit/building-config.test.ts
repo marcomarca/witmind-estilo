@@ -31,7 +31,10 @@ describe("building configuration", () => {
     expect(showroom?.action?.onEntities).toHaveLength(2);
     expect(showroom?.action?.offEntities).toHaveLength(8);
     expect(lobby?.power).toBe("sensor.sensor_de_potencia_showroom_p");
-    expect(lobby?.action?.onEntities).toHaveLength(4);
+    expect(lobby?.action?.serviceEntity).toBe("scene.regular");
+    expect(lobby?.action?.onEntities).toHaveLength(1);
+    expect(lobby?.action?.offEntities).toHaveLength(3);
+    expect(lobby?.circuits).toHaveLength(4);
     expect(recording?.action?.onEntities).toHaveLength(4);
   });
 

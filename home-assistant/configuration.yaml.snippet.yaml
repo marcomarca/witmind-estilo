@@ -176,3 +176,298 @@ panel_custom:
       dev_url: http://192.168.20.44:5174/witmind-ui.html
       default_mode: stable
       fallback_release: 0.5.0
+
+# ------------------------------------------------------------------
+# SENSORES TEMPLATE: CÁLCULO NATIVO DE CIRCUITOS Y POTENCIA (WATTS)
+# ------------------------------------------------------------------
+template:
+  - sensor:
+      # --- SHOWROOM (10 circuitos, 1.495 W max) ---
+      - name: "Showroom Luminarias Encendidas"
+        unique_id: showroom_luminarias_encendidas
+        icon: mdi:lightbulb-on
+        state: >-
+          {{ [
+            states('switch.interruptor_inteligente_switch_1'),
+            states('switch.interruptor_inteligente_switch_2'),
+            states('switch.interruptor_inteligente_switch_3'),
+            states('switch.interruptor_inteligente_switch_4'),
+            states('switch.interruptor_inteligente_2_switch_1'),
+            states('switch.interruptor_inteligente_2_switch_2'),
+            states('switch.interruptor_inteligente_2_switch_3'),
+            states('switch.interruptor_inteligente_2_switch_4'),
+            states('switch.smart_relay_switch_4_switch'),
+            states('switch.smart_relay_switch_3_switch')
+          ] | select('eq', 'on') | list | count }}
+
+      - name: "Showroom Luminarias Apagadas"
+        unique_id: showroom_luminarias_apagadas
+        icon: mdi:lightbulb-off
+        state: >-
+          {{ [
+            states('switch.interruptor_inteligente_switch_1'),
+            states('switch.interruptor_inteligente_switch_2'),
+            states('switch.interruptor_inteligente_switch_3'),
+            states('switch.interruptor_inteligente_switch_4'),
+            states('switch.interruptor_inteligente_2_switch_1'),
+            states('switch.interruptor_inteligente_2_switch_2'),
+            states('switch.interruptor_inteligente_2_switch_3'),
+            states('switch.interruptor_inteligente_2_switch_4'),
+            states('switch.smart_relay_switch_4_switch'),
+            states('switch.smart_relay_switch_3_switch')
+          ] | select('eq', 'off') | list | count }}
+
+      - name: "Showroom Potencia Estimada"
+        unique_id: showroom_potencia_estimada
+        icon: mdi:lightning-bolt
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >-
+          {% set p1 = 100 if is_state('switch.interruptor_inteligente_switch_1', 'on') else 0 %}
+          {% set p2 = 120 if is_state('switch.interruptor_inteligente_switch_2', 'on') else 0 %}
+          {% set p3 = 180 if is_state('switch.interruptor_inteligente_switch_3', 'on') else 0 %}
+          {% set p4 = 25 if is_state('switch.interruptor_inteligente_switch_4', 'on') else 0 %}
+          {% set p5 = 96 if is_state('switch.interruptor_inteligente_2_switch_1', 'on') else 0 %}
+          {% set p6 = 10 if is_state('switch.interruptor_inteligente_2_switch_2', 'on') else 0 %}
+          {% set p7 = 432 if is_state('switch.interruptor_inteligente_2_switch_3', 'on') else 0 %}
+          {% set p8 = 144 if is_state('switch.interruptor_inteligente_2_switch_4', 'on') else 0 %}
+          {% set p9 = 288 if is_state('switch.smart_relay_switch_4_switch', 'on') else 0 %}
+          {% set p10 = 100 if is_state('switch.smart_relay_switch_3_switch', 'on') else 0 %}
+          {{ p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9 + p10 }}
+
+      # --- LOBBY (4 circuitos, 513 W max) ---
+      - name: "Lobby Luminarias Encendidas"
+        unique_id: lobby_luminarias_encendidas
+        icon: mdi:lightbulb-on
+        state: >-
+          {{ [
+            states('switch.interruptor_inteligente_3_switch_1'),
+            states('switch.interruptor_inteligente_3_switch_2'),
+            states('switch.interruptor_inteligente_3_switch_3'),
+            states('switch.interruptor_inteligente_3_switch_4')
+          ] | select('eq', 'on') | list | count }}
+
+      - name: "Lobby Luminarias Apagadas"
+        unique_id: lobby_luminarias_apagadas
+        icon: mdi:lightbulb-off
+        state: >-
+          {{ [
+            states('switch.interruptor_inteligente_3_switch_1'),
+            states('switch.interruptor_inteligente_3_switch_2'),
+            states('switch.interruptor_inteligente_3_switch_3'),
+            states('switch.interruptor_inteligente_3_switch_4')
+          ] | select('eq', 'off') | list | count }}
+
+      - name: "Lobby Potencia Estimada"
+        unique_id: lobby_potencia_estimada
+        icon: mdi:lightning-bolt
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >-
+          {% set p1 = 100 if is_state('switch.interruptor_inteligente_3_switch_1', 'on') else 0 %}
+          {% set p2 = 40 if is_state('switch.interruptor_inteligente_3_switch_2', 'on') else 0 %}
+          {% set p3 = 168 if is_state('switch.interruptor_inteligente_3_switch_3', 'on') else 0 %}
+          {% set p4 = 205 if is_state('switch.interruptor_inteligente_3_switch_4', 'on') else 0 %}
+          {{ p1 + p2 + p3 + p4 }}
+
+      # --- OFICINAS (7 circuitos, 837 W max) ---
+      - name: "Oficinas Luminarias Encendidas"
+        unique_id: oficinas_luminarias_encendidas
+        icon: mdi:lightbulb-on
+        state: >-
+          {{ [
+            states('switch.oficina_gerencial_interruptor_1'),
+            states('switch.oficina_mindtec_interruptor_1'),
+            states('switch.oficina_grande_interruptor_1'),
+            states('switch.oficina_grande_interruptor_2'),
+            states('switch.b2_gang_interruptor_1'),
+            states('switch.b2_gang_interruptor_2'),
+            states('switch.taller_interruptor_1')
+          ] | select('eq', 'on') | list | count }}
+
+      - name: "Oficinas Luminarias Apagadas"
+        unique_id: oficinas_luminarias_apagadas
+        icon: mdi:lightbulb-off
+        state: >-
+          {{ [
+            states('switch.oficina_gerencial_interruptor_1'),
+            states('switch.oficina_mindtec_interruptor_1'),
+            states('switch.oficina_grande_interruptor_1'),
+            states('switch.oficina_grande_interruptor_2'),
+            states('switch.b2_gang_interruptor_1'),
+            states('switch.b2_gang_interruptor_2'),
+            states('switch.taller_interruptor_1')
+          ] | select('eq', 'off') | list | count }}
+
+      - name: "Oficinas Potencia Estimada"
+        unique_id: oficinas_potencia_estimada
+        icon: mdi:lightning-bolt
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >-
+          {% set p1 = 48 if is_state('switch.oficina_gerencial_interruptor_1', 'on') else 0 %}
+          {% set p2 = 48 if is_state('switch.oficina_mindtec_interruptor_1', 'on') else 0 %}
+          {% set p3 = 192 if is_state('switch.oficina_grande_interruptor_1', 'on') else 0 %}
+          {% set p4 = 192 if is_state('switch.oficina_grande_interruptor_2', 'on') else 0 %}
+          {% set p5 = 96 if is_state('switch.b2_gang_interruptor_1', 'on') else 0 %}
+          {% set p6 = 117 if is_state('switch.b2_gang_interruptor_2', 'on') else 0 %}
+          {% set p7 = 144 if is_state('switch.taller_interruptor_1', 'on') else 0 %}
+          {{ p1 + p2 + p3 + p4 + p5 + p6 + p7 }}
+
+      # --- SALA DE GRABACIÓN (4 circuitos, 203 W max) ---
+      - name: "Sala Grabacion Luminarias Encendidas"
+        unique_id: sala_grabacion_luminarias_encendidas
+        icon: mdi:lightbulb-on
+        state: >-
+          {{ [
+            states('switch.4gang_switch_sala_grabacion_interruptor_1'),
+            states('switch.4gang_switch_sala_grabacion_interruptor_2'),
+            states('switch.4gang_switch_sala_grabacion_interruptor_3'),
+            states('switch.4gang_switch_sala_grabacion_interruptor_4')
+          ] | select('eq', 'on') | list | count }}
+
+      - name: "Sala Grabacion Luminarias Apagadas"
+        unique_id: sala_grabacion_luminarias_apagadas
+        icon: mdi:lightbulb-off
+        state: >-
+          {{ [
+            states('switch.4gang_switch_sala_grabacion_interruptor_1'),
+            states('switch.4gang_switch_sala_grabacion_interruptor_2'),
+            states('switch.4gang_switch_sala_grabacion_interruptor_3'),
+            states('switch.4gang_switch_sala_grabacion_interruptor_4')
+          ] | select('eq', 'off') | list | count }}
+
+      - name: "Sala Grabacion Potencia Estimada"
+        unique_id: sala_grabacion_potencia_estimada
+        icon: mdi:lightning-bolt
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >-
+          {% set p1 = 42 if is_state('switch.4gang_switch_sala_grabacion_interruptor_1', 'on') else 0 %}
+          {% set p2 = 96 if is_state('switch.4gang_switch_sala_grabacion_interruptor_2', 'on') else 0 %}
+          {% set p3 = 45 if is_state('switch.4gang_switch_sala_grabacion_interruptor_3', 'on') else 0 %}
+          {% set p4 = 20 if is_state('switch.4gang_switch_sala_grabacion_interruptor_4', 'on') else 0 %}
+          {{ p1 + p2 + p3 + p4 }}
+
+      # --- WITMIND TOTAL (25 circuitos, 3.048 W max) ---
+      - name: "Witmind Total Luminarias Encendidas"
+        unique_id: witmind_total_luminarias_encendidas
+        icon: mdi:lightbulb-multiple
+        state: >-
+          {{ states('sensor.showroom_luminarias_encendidas') | int(0) +
+             states('sensor.lobby_luminarias_encendidas') | int(0) +
+             states('sensor.oficinas_luminarias_encendidas') | int(0) +
+             states('sensor.sala_grabacion_luminarias_encendidas') | int(0) }}
+
+      - name: "Witmind Total Luminarias Apagadas"
+        unique_id: witmind_total_luminarias_apagadas
+        icon: mdi:lightbulb-multiple-off
+        state: >-
+          {{ states('sensor.showroom_luminarias_apagadas') | int(0) +
+             states('sensor.lobby_luminarias_apagadas') | int(0) +
+             states('sensor.oficinas_luminarias_apagadas') | int(0) +
+             states('sensor.sala_grabacion_luminarias_apagadas') | int(0) }}
+
+      - name: "Witmind Total Potencia Estimada"
+        unique_id: witmind_total_potencia_estimada
+        icon: mdi:transmission-tower
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >-
+          {{ states('sensor.showroom_potencia_estimada') | float(0) +
+             states('sensor.lobby_potencia_estimada') | float(0) +
+             states('sensor.oficinas_potencia_estimada') | float(0) +
+             states('sensor.sala_grabacion_potencia_estimada') | float(0) }}
+
+# ------------------------------------------------------------------
+# ESCENAS Y SCRIPTS WITMIND
+# ------------------------------------------------------------------
+scene:
+  - id: reunion
+    name: Reunión
+    entities:
+      switch.interruptor_inteligente_switch_1: "on"
+      switch.interruptor_inteligente_switch_2: "on"
+      switch.interruptor_inteligente_switch_3: "off"
+      switch.interruptor_inteligente_switch_4: "off"
+      switch.interruptor_inteligente_2_switch_1: "off"
+      switch.interruptor_inteligente_2_switch_2: "off"
+      switch.interruptor_inteligente_2_switch_3: "off"
+      switch.interruptor_inteligente_2_switch_4: "off"
+      switch.smart_relay_switch_4_switch: "off"
+      switch.smart_relay_switch_3_switch: "off"
+
+  - id: regular
+    name: Regular Lobby
+    entities:
+      switch.interruptor_inteligente_3_switch_4: "on"
+      switch.interruptor_inteligente_3_switch_1: "off"
+      switch.interruptor_inteligente_3_switch_2: "off"
+      switch.interruptor_inteligente_3_switch_3: "off"
+
+script:
+  showroom_apagado_general:
+    alias: "Apagado General Showroom"
+    sequence:
+      - action: switch.turn_off
+        target:
+          entity_id:
+            - switch.interruptor_inteligente_switch_1
+            - switch.interruptor_inteligente_switch_2
+            - switch.interruptor_inteligente_switch_3
+            - switch.interruptor_inteligente_switch_4
+            - switch.interruptor_inteligente_2_switch_1
+            - switch.interruptor_inteligente_2_switch_2
+            - switch.interruptor_inteligente_2_switch_3
+            - switch.interruptor_inteligente_2_switch_4
+            - switch.smart_relay_switch_4_switch
+            - switch.smart_relay_switch_3_switch
+
+  lobby_apagado_general:
+    alias: "Apagado General Lobby"
+    sequence:
+      - action: switch.turn_off
+        target:
+          entity_id:
+            - switch.interruptor_inteligente_3_switch_1
+            - switch.interruptor_inteligente_3_switch_2
+            - switch.interruptor_inteligente_3_switch_3
+            - switch.interruptor_inteligente_3_switch_4
+
+  apagado_total_witmind:
+    alias: "Apagado Total Witmind"
+    sequence:
+      - action: switch.turn_off
+        target:
+          entity_id:
+            - switch.interruptor_inteligente_switch_1
+            - switch.interruptor_inteligente_switch_2
+            - switch.interruptor_inteligente_switch_3
+            - switch.interruptor_inteligente_switch_4
+            - switch.interruptor_inteligente_2_switch_1
+            - switch.interruptor_inteligente_2_switch_2
+            - switch.interruptor_inteligente_2_switch_3
+            - switch.interruptor_inteligente_2_switch_4
+            - switch.smart_relay_switch_4_switch
+            - switch.smart_relay_switch_3_switch
+            - switch.interruptor_inteligente_3_switch_1
+            - switch.interruptor_inteligente_3_switch_2
+            - switch.interruptor_inteligente_3_switch_3
+            - switch.interruptor_inteligente_3_switch_4
+            - switch.oficina_gerencial_interruptor_1
+            - switch.oficina_mindtec_interruptor_1
+            - switch.oficina_grande_interruptor_1
+            - switch.oficina_grande_interruptor_2
+            - switch.b2_gang_interruptor_1
+            - switch.b2_gang_interruptor_2
+            - switch.taller_interruptor_1
+            - switch.4gang_switch_sala_grabacion_interruptor_1
+            - switch.4gang_switch_sala_grabacion_interruptor_2
+            - switch.4gang_switch_sala_grabacion_interruptor_3
+            - switch.4gang_switch_sala_grabacion_interruptor_4
+

@@ -682,6 +682,7 @@ class WitmindBuildingPanel extends LitElement {
   private _renderZoneRow(zone: BuildingZone) {
     const available = this._availableCircuits(zone);
     const active = this._onCircuits(zone);
+    const offCount = available.length - active.length;
     const unavailable = zone.circuits.length - available.length;
     const power = this._zonePower(zone);
     const profileActive = this._profileActive(zone);
@@ -692,7 +693,7 @@ class WitmindBuildingPanel extends LitElement {
         <div class="zone-name" role="cell">${renderIcon("lightbulb", { size: 18 })}<strong>${zone.label}</strong></div>
         <div role="cell"><span class="status status-${status}"><i></i>${label}</span></div>
         <div role="cell" class="numeric">${power ? this._format(power.value, "W") : "No disponible"}${power && !power.measured ? html`<small>nominal</small>` : nothing}</div>
-        <div role="cell" class="numeric">${available.length} / ${zone.circuits.length}</div>
+        <div role="cell" class="numeric">${active.length} enc. · ${offCount} apag.</div>
         <div role="cell">
           <button class="toggle ${profileActive ? "is-on" : ""}" ?disabled=${!available.length || this._actionState === "loading"} @click=${() => this._toggleZone(zone)} aria-label="${profileActive ? "Apagar" : "Activar"} ${zone.action?.label || zone.label}" aria-pressed=${profileActive}><span></span></button>
         </div>
@@ -758,7 +759,7 @@ class WitmindBuildingPanel extends LitElement {
             ` : nothing}
           </div>
           <div class="overlay-metrics">
-            ${available.length ? html`<span>${renderIcon("lightbulb", { size: 12 })}${active.length}/${available.length}</span>` : nothing}
+            ${available.length ? html`<span title="${active.length} encendidos, ${available.length - active.length} apagados">${renderIcon("lightbulb", { size: 12 })}${active.length} enc. / ${available.length - active.length} apag.</span>` : nothing}
             ${power ? html`<span>${renderIcon("zap", { size: 12 })}${this._format(power.value, "W")}</span>` : nothing}
             ${temperature !== null ? html`<span>${renderIcon("thermometer", { size: 12 })}${this._format(temperature, "°C", 1)}</span>` : nothing}
             ${humidity !== null ? html`<span>${renderIcon("droplets", { size: 12 })}${this._format(humidity, "%", 0)}</span>` : nothing}

@@ -29,12 +29,12 @@ const SAMPLES: Circuit[] = [
 const REFLECTOR: Circuit = {
   id: "switch.smart_relay_switch_3_switch",
   name: "Reflector exterior",
-  subtitle: "Control aislado",
-  watts: 0
+  subtitle: "Control aislado · 100 W",
+  watts: 100
 };
 
 const ALL_CIRCUITS = [...SPOTS, ...SAMPLES, REFLECTOR];
-const TOTAL_NOMINAL_CAPACITY_W = 1395;
+const TOTAL_NOMINAL_CAPACITY_W = 1495;
 
 const ENTITIES = {
   weather: "weather.forecast_casa",

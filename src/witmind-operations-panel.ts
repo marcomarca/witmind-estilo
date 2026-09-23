@@ -145,7 +145,7 @@ class WitmindOperationsPanel extends HTMLElement {
             <div class="brand" aria-label="Witmind ${this._escape(title)}"><strong class="brand-wordmark">WITMIND</strong><span>WTX · MDTC</span></div>
           </div>
           <div class="status-strip" aria-label="Resumen de ${this._escape(title)}">
-            <button class="status-pill ${activeCount ? "is-active" : ""}" type="button"><span class="status-pill-icon">${this._icon("bulb")}</span><span><strong><span data-total-on>${activeCount}</span> de ${devices.length}</strong><small>Circuitos</small></span></button>
+            <button class="status-pill ${activeCount ? "is-active" : ""}" type="button"><span class="status-pill-icon">${this._icon("bulb")}</span><span><strong><span data-total-on>${activeCount}</span> enc. · <span data-total-off>${devices.length - activeCount}</span> apag.</strong><small>Circuitos</small></span></button>
             <button class="status-pill ${activePower ? "is-active" : ""}" type="button"><span class="status-pill-icon">${this._icon("power")}</span><span><strong data-active-power>${formatWatts(activePower)}</strong><small>Activos</small></span></button>
             <button class="status-pill" type="button"><span class="status-pill-icon">${this._icon("energy")}</span><span><strong data-installed-power>${formatWatts(installedPower)}</strong><small>Instalados</small></span></button>
           </div>
@@ -537,11 +537,15 @@ class WitmindOperationsPanel extends HTMLElement {
       if (state) state.textContent = error || (pending ? (on ? "Encendiendo…" : "Apagando…") : unavailable ? "No disponible" : on ? "Encendido" : "Apagado");
     });
     const devices = this._devices();
-    const total = this.shadowRoot?.querySelector("[data-total-on]");
+    const onCount = devices.filter((device) => this._isOn(device.entity)).length;
+    const offCount = devices.length - onCount;
+    const totalOn = this.shadowRoot?.querySelector("[data-total-on]");
+    const totalOff = this.shadowRoot?.querySelector("[data-total-off]");
     const active = this.shadowRoot?.querySelector("[data-active-power]");
-    if (total) total.textContent = String(devices.filter((device) => this._isOn(device.entity)).length);
+    if (totalOn) totalOn.textContent = String(onCount);
+    if (totalOff) totalOff.textContent = String(offCount);
     if (active) active.textContent = formatWatts(this._powerActive(devices));
-    total?.closest(".status-pill")?.classList.toggle("is-active", devices.some((device) => this._isOn(device.entity)));
+    totalOn?.closest(".status-pill")?.classList.toggle("is-active", onCount > 0);
     active?.closest(".status-pill")?.classList.toggle("is-active", this._powerActive(devices) > 0);
   }
 

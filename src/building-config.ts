@@ -61,8 +61,8 @@ export const BUILDING_ZONES: BuildingZone[] = [
       { entity: "switch.interruptor_inteligente_2_switch_2", label: "Colgantes", watts: 10 },
       { entity: "switch.interruptor_inteligente_2_switch_3", label: "Slims", watts: 432 },
       { entity: "switch.interruptor_inteligente_2_switch_4", label: "Downlights", watts: 144 },
-      { entity: "switch.smart_relay_switch_4_switch", label: "Paneles", watts: 288 },
-      { entity: "switch.smart_relay_switch_3_switch", label: "Reflector exterior" },
+      { entity: "switch.smart_relay_switch_4_switch", label: "Paneles (relé)", watts: 288 },
+      { entity: "switch.smart_relay_switch_3_switch", label: "Reflector exterior", watts: 100 },
     ],
     action: {
       label: "Modo reunión",
@@ -98,20 +98,22 @@ export const BUILDING_ZONES: BuildingZone[] = [
     label: "Lobby",
     power: BUILDING_ENTITIES.lobbyPower,
     circuits: [
-      { entity: "switch.interruptor_inteligente_3_switch_1", label: "Central colgante" },
-      { entity: "switch.interruptor_inteligente_3_switch_2", label: "Spots decorativos" },
-      { entity: "switch.interruptor_inteligente_3_switch_3", label: "Tira LED" },
-      { entity: "switch.interruptor_inteligente_3_switch_4", label: "Spots principales" },
+      { entity: "switch.interruptor_inteligente_3_switch_1", label: "Central Colgante", watts: 100 },
+      { entity: "switch.interruptor_inteligente_3_switch_2", label: "Spots 5W Decorativos", watts: 40 },
+      { entity: "switch.interruptor_inteligente_3_switch_3", label: "Tira LED", watts: 168 },
+      { entity: "switch.interruptor_inteligente_3_switch_4", label: "Spots 10W", watts: 205 },
     ],
     action: {
-      label: "Modo invitados",
+      label: "Modo regular",
+      serviceEntity: "scene.regular",
       onEntities: [
+        "switch.interruptor_inteligente_3_switch_4",
+      ],
+      offEntities: [
         "switch.interruptor_inteligente_3_switch_1",
         "switch.interruptor_inteligente_3_switch_2",
         "switch.interruptor_inteligente_3_switch_3",
-        "switch.interruptor_inteligente_3_switch_4",
       ],
-      offEntities: [],
     },
   },
   {
@@ -119,10 +121,10 @@ export const BUILDING_ZONES: BuildingZone[] = [
     floor: "ground",
     label: "Grabación",
     circuits: [
-      { entity: "switch.4gang_switch_sala_grabacion_interruptor_1", label: "Tira LED", watts: 24 },
+      { entity: "switch.4gang_switch_sala_grabacion_interruptor_1", label: "Tiras LED", watts: 42 },
       { entity: "switch.4gang_switch_sala_grabacion_interruptor_2", label: "Paneles", watts: 96 },
-      { entity: "switch.4gang_switch_sala_grabacion_interruptor_3", label: "Spots", watts: 50 },
-      { entity: "switch.4gang_switch_sala_grabacion_interruptor_4", label: "Otras luces", watts: 30 },
+      { entity: "switch.4gang_switch_sala_grabacion_interruptor_3", label: "Tracklight", watts: 45 },
+      { entity: "switch.4gang_switch_sala_grabacion_interruptor_4", label: "Spots", watts: 20 },
     ],
     action: {
       label: "Iluminación completa",
@@ -140,12 +142,22 @@ export const BUILDING_ZONES: BuildingZone[] = [
     floor: "upper",
     label: "Witronix",
     circuits: [{ entity: "switch.oficina_gerencial_interruptor_1", label: "Witronix LED", watts: 48 }],
+    action: {
+      label: "Encender todo",
+      onEntities: ["switch.oficina_gerencial_interruptor_1"],
+      offEntities: [],
+    },
   },
   {
     id: "upper.mindtec",
     floor: "upper",
     label: "Mindtec",
-    circuits: [{ entity: "switch.oficina_mindtec_interruptor_1", label: "Iluminación Mindtec", watts: 48 }],
+    circuits: [{ entity: "switch.oficina_mindtec_interruptor_1", label: "Mindtec", watts: 48 }],
+    action: {
+      label: "Encender todo",
+      onEntities: ["switch.oficina_mindtec_interruptor_1"],
+      offEntities: [],
+    },
   },
   {
     id: "upper.office_large",
@@ -154,9 +166,17 @@ export const BUILDING_ZONES: BuildingZone[] = [
     temperature: "sensor.t_h_sensor_2_temperature",
     humidity: "sensor.t_h_sensor_2_humidity",
     circuits: [
-      { entity: "switch.oficina_grande_interruptor_1", label: "Oficina grande 1", watts: 168 },
-      { entity: "switch.oficina_grande_interruptor_2", label: "Oficina grande 2", watts: 168 },
+      { entity: "switch.oficina_grande_interruptor_1", label: "Oficina general 1", watts: 192 },
+      { entity: "switch.oficina_grande_interruptor_2", label: "Oficina general 2", watts: 192 },
     ],
+    action: {
+      label: "Encender todo",
+      onEntities: [
+        "switch.oficina_grande_interruptor_1",
+        "switch.oficina_grande_interruptor_2",
+      ],
+      offEntities: [],
+    },
   },
   {
     id: "upper.sala_multiuso",
@@ -166,12 +186,25 @@ export const BUILDING_ZONES: BuildingZone[] = [
       { entity: "switch.b2_gang_interruptor_1", label: "Multifuncional", watts: 96 },
       { entity: "switch.b2_gang_interruptor_2", label: "Pasillos", watts: 117 },
     ],
+    action: {
+      label: "Encender todo",
+      onEntities: [
+        "switch.b2_gang_interruptor_1",
+        "switch.b2_gang_interruptor_2",
+      ],
+      offEntities: [],
+    },
   },
   {
     id: "upper.taller",
     floor: "upper",
     label: "Taller",
-    circuits: [{ entity: "switch.taller_interruptor_1", label: "Iluminación Taller", watts: 144 }],
+    circuits: [{ entity: "switch.taller_interruptor_1", label: "Taller", watts: 144 }],
+    action: {
+      label: "Encender todo",
+      onEntities: ["switch.taller_interruptor_1"],
+      offEntities: [],
+    },
   },
 ];
 
