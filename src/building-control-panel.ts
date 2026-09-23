@@ -9,6 +9,14 @@ import {
   type BuildingZone,
 } from "./building-config.js";
 import type { WitmindEntity } from "./ha/WitmindHaClient.js";
+import {
+  loadBuildingLayout,
+  saveBuildingLayout,
+  resetFloorLayout,
+  sanitizeTransform,
+  sanitizeOverlay,
+  type BuildingLayoutStore,
+} from "./building-layout-store.js";
 
 type HassLike = {
   states?: Record<string, WitmindEntity>;
@@ -106,6 +114,26 @@ class WitmindBuildingPanel extends LitElement {
   private _touchLastX: number | null = null;
   private _mouseStartX: number | null = null;
   private _mouseLastX: number | null = null;
+  private _editMode = false;
+  private _layoutStore: BuildingLayoutStore = loadBuildingLayout();
+  private _draggingOverlay: {
+    zoneId: string;
+    startPointerX: number;
+    startPointerY: number;
+    startLeft: number;
+    startTop: number;
+    stageWidth: number;
+    stageHeight: number;
+    overlayWidth: number;
+  } | null = null;
+  private _draggingImage: {
+    startPointerX: number;
+    startPointerY: number;
+    startX: number;
+    startY: number;
+    stageWidth: number;
+    stageHeight: number;
+  } | null = null;
 
   set hass(value: HassLike | null) {
     const old = this._hass;
@@ -260,19 +288,21 @@ class WitmindBuildingPanel extends LitElement {
   }
 
   private _onTouchStart(event: TouchEvent) {
+    if (this._editMode) return;
     const touch = event.changedTouches[0] || event.touches[0];
     if (!touch) return;
     this._touchStartX = touch.clientX;
     this._touchLastX = touch.clientX;
   }
   private _onTouchMove = (event: TouchEvent) => {
-    if (this._touchStartX === null) return;
+    if (this._editMode || this._touchStartX === null) return;
     const touch = event.touches[0];
     if (!touch) return;
     this._touchLastX = touch.clientX;
     if (Math.abs(touch.clientX - this._touchStartX) > 12) event.preventDefault();
   };
   private _onTouchEnd = () => {
+    if (this._editMode) return;
     if (this._touchStartX !== null && this._touchLastX !== null) this._finishFloorSwipe(this._touchLastX - this._touchStartX);
     this._touchStartX = null;
     this._touchLastX = null;
@@ -280,22 +310,196 @@ class WitmindBuildingPanel extends LitElement {
   private _onTouchCancel = () => { this._touchStartX = null; this._touchLastX = null; };
 
   private _onPointerDown(event: PointerEvent) {
+    if (this._editMode) return;
     if (event.pointerType === "touch" || event.button !== 0) return;
     this._mouseStartX = event.clientX;
     this._mouseLastX = event.clientX;
   }
   private _onPointerMove = (event: PointerEvent) => {
+    if (this._editMode) return;
     if (this._mouseStartX !== null) this._mouseLastX = event.clientX;
   };
   private _onPointerUp = () => {
+    if (this._editMode) return;
     if (this._mouseStartX !== null && this._mouseLastX !== null) this._finishFloorSwipe(this._mouseLastX - this._mouseStartX);
     this._mouseStartX = null;
     this._mouseLastX = null;
   };
   private _onPointerCancel = () => { this._mouseStartX = null; this._mouseLastX = null; };
   private _finishFloorSwipe(dx: number) {
+    if (this._editMode) return;
     if (Math.abs(dx) < 54) return;
     this._setFloor(dx < 0 ? "upper" : "ground");
+  }
+
+  private _toggleEditMode() {
+    this._editMode = !this._editMode;
+    if (!this._editMode) {
+      saveBuildingLayout(this._layoutStore);
+    }
+    this.requestUpdate();
+  }
+
+  private _resetActiveFloor = () => {
+    this._layoutStore = resetFloorLayout(this._layoutStore, this._activeFloor);
+    this.requestUpdate();
+  };
+
+  private _adjustImage(dx: number, dy: number, dscale: number = 0) {
+    const current = this._layoutStore[this._activeFloor].image;
+    this._layoutStore[this._activeFloor].image = sanitizeTransform({
+      x: current.x + dx,
+      y: current.y + dy,
+      scale: current.scale + dscale,
+    });
+    saveBuildingLayout(this._layoutStore);
+    this.requestUpdate();
+  }
+
+  private _onOverlayPointerDown(e: PointerEvent, zoneId: string) {
+    if (!this._editMode || e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const target = e.currentTarget as HTMLElement;
+    target.setPointerCapture(e.pointerId);
+
+    const stage = this.renderRoot.querySelector(".floor-stage") as HTMLElement;
+    const stageRect = stage ? stage.getBoundingClientRect() : { width: 1, height: 1 };
+    const current = this._layoutStore[this._activeFloor].overlays[zoneId];
+    const currentLeft = current?.left ?? 10;
+    const currentTop = current?.top ?? 10;
+    const currentWidth = current?.width ?? 21;
+
+    this._draggingOverlay = {
+      zoneId,
+      startPointerX: e.clientX,
+      startPointerY: e.clientY,
+      startLeft: currentLeft,
+      startTop: currentTop,
+      stageWidth: stageRect.width || 1,
+      stageHeight: stageRect.height || 1,
+      overlayWidth: currentWidth,
+    };
+  }
+
+  private _onOverlayPointerMove = (e: PointerEvent) => {
+    if (!this._draggingOverlay) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const { zoneId, startPointerX, startPointerY, startLeft, startTop, stageWidth, stageHeight, overlayWidth } = this._draggingOverlay;
+    const deltaXPercent = ((e.clientX - startPointerX) / stageWidth) * 100;
+    const deltaYPercent = ((e.clientY - startPointerY) / stageHeight) * 100;
+
+    this._layoutStore[this._activeFloor].overlays[zoneId] = sanitizeOverlay(
+      zoneId,
+      {
+        left: startLeft + deltaXPercent,
+        top: startTop + deltaYPercent,
+        width: overlayWidth,
+      },
+      overlayWidth
+    );
+    this.requestUpdate();
+  };
+
+  private _onOverlayPointerUp = (e: PointerEvent) => {
+    if (!this._draggingOverlay) return;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch (_) {}
+    this._draggingOverlay = null;
+    saveBuildingLayout(this._layoutStore);
+    this.requestUpdate();
+  };
+
+  private _onStagePointerDown = (e: PointerEvent) => {
+    if (!this._editMode || e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (target.closest(".zone-overlay") || target.closest("button")) return;
+    e.preventDefault();
+    const stage = e.currentTarget as HTMLElement;
+    stage.setPointerCapture(e.pointerId);
+    const stageRect = stage.getBoundingClientRect();
+    const current = this._layoutStore[this._activeFloor].image;
+
+    this._draggingImage = {
+      startPointerX: e.clientX,
+      startPointerY: e.clientY,
+      startX: current.x,
+      startY: current.y,
+      stageWidth: stageRect.width || 1,
+      stageHeight: stageRect.height || 1,
+    };
+  };
+
+  private _onStagePointerMove = (e: PointerEvent) => {
+    if (!this._draggingImage) return;
+    e.preventDefault();
+    const { startPointerX, startPointerY, startX, startY, stageWidth, stageHeight } = this._draggingImage;
+    const deltaXPercent = ((e.clientX - startPointerX) / stageWidth) * 100;
+    const deltaYPercent = ((e.clientY - startPointerY) / stageHeight) * 100;
+
+    this._layoutStore[this._activeFloor].image = sanitizeTransform({
+      x: startX + deltaXPercent,
+      y: startY + deltaYPercent,
+      scale: this._layoutStore[this._activeFloor].image.scale,
+    });
+    this.requestUpdate();
+  };
+
+  private _onStagePointerUp = (e: PointerEvent) => {
+    if (!this._draggingImage) return;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch (_) {}
+    this._draggingImage = null;
+    saveBuildingLayout(this._layoutStore);
+    this.requestUpdate();
+  };
+
+  private _renderEditToolbar() {
+    const transform = this._layoutStore[this._activeFloor].image;
+    const floorLabel = this._activeFloor === "ground" ? "Planta Baja" : "Planta Alta";
+
+    return html`
+      <div class="edit-toolbar" role="toolbar" aria-label="Herramientas de edición del plano">
+        <div class="toolbar-section">
+          <div class="toolbar-badge">
+            ${renderIcon("pencil", { size: 14 })}
+            <strong>MODO EDICIÓN</strong>
+            <span>${floorLabel}</span>
+          </div>
+          <span class="toolbar-hint">Arrastra los elementos sobre el plano o calibra la imagen</span>
+        </div>
+
+        <div class="toolbar-controls">
+          <div class="control-group" title="Desplazamiento horizontal y vertical de la imagen">
+            <span class="control-label">Imagen</span>
+            <button class="btn-ctrl" @click=${() => this._adjustImage(-1, 0)} title="Mover imagen a la izquierda">←</button>
+            <button class="btn-ctrl" @click=${() => this._adjustImage(0, -1)} title="Mover imagen hacia arriba">↑</button>
+            <button class="btn-ctrl" @click=${() => this._adjustImage(0, 1)} title="Mover imagen hacia abajo">↓</button>
+            <button class="btn-ctrl" @click=${() => this._adjustImage(1, 0)} title="Mover imagen a la derecha">→</button>
+          </div>
+
+          <div class="control-group" title="Zoom de la imagen">
+            <span class="control-label">Zoom ${(transform.scale * 100).toFixed(0)}%</span>
+            <button class="btn-ctrl" @click=${() => this._adjustImage(0, 0, -0.05)} title="Alejar zoom" ?disabled=${transform.scale <= 0.65}>-</button>
+            <button class="btn-ctrl" @click=${() => this._adjustImage(0, 0, 0.05)} title="Acercar zoom" ?disabled=${transform.scale >= 1.95}>+</button>
+            <button class="btn-ctrl btn-reset" @click=${() => this._adjustImage(-transform.x, -transform.y, 1 - transform.scale)} title="Centrar imagen">Centrar</button>
+          </div>
+
+          <div class="toolbar-actions">
+            <button class="btn-action btn-danger" @click=${this._resetActiveFloor} title="Restablecer plano y elementos a valores de fábrica">
+              ${renderIcon("rotate-ccw", { size: 13 })}
+              <span>Restablecer</span>
+            </button>
+            <button class="btn-action btn-primary" @click=${() => this._toggleEditMode()} title="Guardar cambios y salir">
+              ${renderIcon("save", { size: 13 })}
+              <span>Guardar</span>
+            </button>
+          </div>
+        </div>
+      </div>`;
   }
 
   private async _toggleZone(zone: BuildingZone) {
@@ -378,24 +582,50 @@ class WitmindBuildingPanel extends LitElement {
   }
 
   private _renderFloorOverlays() {
-    return BUILDING_ZONE_OVERLAYS[this._activeFloor].map((overlay) => {
-      const zone = BUILDING_ZONES.find((candidate) => candidate.id === overlay.zoneId);
+    const floorConfig = this._layoutStore[this._activeFloor];
+    const defaultOverlays = BUILDING_ZONE_OVERLAYS[this._activeFloor];
+
+    return defaultOverlays.map((defaultOverlay) => {
+      const zoneId = defaultOverlay.zoneId;
+      const zone = BUILDING_ZONES.find((candidate) => candidate.id === zoneId);
       if (!zone) return nothing;
+
       const available = this._availableCircuits(zone);
       const active = this._onCircuits(zone);
       const power = this._zonePower(zone);
       const temperature = zone.temperature ? numericState(this._state(zone.temperature)) : null;
       const humidity = zone.humidity ? numericState(this._state(zone.humidity)) : null;
       const hasLiveData = available.length || power || temperature !== null || humidity !== null;
-      if (!hasLiveData) return nothing;
+
+      if (!hasLiveData && !this._editMode) return nothing;
+
+      const pos = floorConfig.overlays[zoneId] || {
+        zoneId,
+        left: defaultOverlay.left,
+        top: defaultOverlay.top,
+        width: defaultOverlay.width || 21,
+      };
+
       return html`
-        <div class="zone-overlay ${active.length ? "is-active" : ""}" style="left:${overlay.left}%;top:${overlay.top}%;width:${overlay.width || 21}%">
-          <strong>${zone.label}</strong>
+        <div
+          class="zone-overlay ${active.length ? "is-active" : ""} ${this._editMode ? "is-editing" : ""}"
+          style="left:${pos.left}%;top:${pos.top}%;width:${pos.width || 21}%;"
+          @pointerdown=${(e: PointerEvent) => this._onOverlayPointerDown(e, zoneId)}
+          @pointermove=${this._onOverlayPointerMove}
+          @pointerup=${this._onOverlayPointerUp}
+          @pointercancel=${this._onOverlayPointerUp}
+          title=${this._editMode ? `Arrastrar ${zone.label} (${pos.left.toFixed(1)}%, ${pos.top.toFixed(1)}%)` : zone.label}
+        >
+          <div class="overlay-header">
+            ${this._editMode ? html`<span class="drag-handle">${renderIcon("move", { size: 12 })}</span>` : nothing}
+            <strong>${zone.label}</strong>
+          </div>
           <div class="overlay-metrics">
             ${available.length ? html`<span>${renderIcon("lightbulb", { size: 12 })}${active.length}/${available.length}</span>` : nothing}
             ${power ? html`<span>${renderIcon("zap", { size: 12 })}${this._format(power.value, "W")}</span>` : nothing}
             ${temperature !== null ? html`<span>${renderIcon("thermometer", { size: 12 })}${this._format(temperature, "°C", 1)}</span>` : nothing}
             ${humidity !== null ? html`<span>${renderIcon("droplets", { size: 12 })}${this._format(humidity, "%", 0)}</span>` : nothing}
+            ${!hasLiveData && this._editMode ? html`<span class="empty-badge">Sin telemetría</span>` : nothing}
           </div>
         </div>`;
     });
@@ -443,16 +673,36 @@ class WitmindBuildingPanel extends LitElement {
           <section class="main-column">
             <article id="floor-plan" class="panel floor-card">
               <div class="panel-head"><div class="panel-title">${renderIcon("home", { size: 19 })}<h2>PLANO DEL EDIFICIO <span>${floor.context}</span></h2></div><div class="floor-selector" role="group" aria-label="Seleccionar planta"><button class=${this._activeFloor === "ground" ? "selected" : ""} @click=${() => this._setFloor("ground")}>Planta Baja</button><button class=${this._activeFloor === "upper" ? "selected" : ""} @click=${() => this._setFloor("upper")}>Planta Alta</button></div></div>
-              <div class="floor-viewport" data-no-swipe @touchstart=${this._onTouchStart} @pointerdown=${this._onPointerDown} aria-label="${floor.label}: ${floor.context}">
-                <div class="floor-stage" style="aspect-ratio: ${floor.aspectRatio};">
-                  <picture>
+              <div class="floor-viewport ${this._editMode ? "viewport-editing" : ""}" data-no-swipe @touchstart=${this._onTouchStart} @pointerdown=${this._onPointerDown} aria-label="${floor.label}: ${floor.context}">
+                ${this._editMode ? this._renderEditToolbar() : nothing}
+
+                <div
+                  class="floor-stage ${this._editMode ? "is-editing" : ""}"
+                  style="aspect-ratio: ${floor.aspectRatio};"
+                  @pointerdown=${this._onStagePointerDown}
+                  @pointermove=${this._onStagePointerMove}
+                  @pointerup=${this._onStagePointerUp}
+                  @pointercancel=${this._onStagePointerUp}
+                >
+                  <picture class="floor-picture" style="transform: translate(${this._layoutStore[this._activeFloor].image.x}%, ${this._layoutStore[this._activeFloor].image.y}%) scale(${this._layoutStore[this._activeFloor].image.scale}); transform-origin: center center;">
                     <source srcset=${currentImages.webp} type="image/webp" />
                     <img src=${currentImages.png} alt="Plano arquitectónico real de ${floor.label}" draggable="false" />
                   </picture>
                   <div class="floor-overlays" aria-label="Datos en tiempo real de ${floor.label}">${this._renderFloorOverlays()}</div>
                 </div>
                 <div class="floor-caption"><strong>${floor.label}</strong><span>${floor.context}</span></div>
-                <div class="compass" aria-label="Norte">N<span>↑</span></div>
+                
+                <div class="viewport-tools">
+                  <button
+                    class="tool-btn pencil-btn ${this._editMode ? "is-active" : ""}"
+                    @click=${() => this._toggleEditMode()}
+                    aria-label="${this._editMode ? "Guardar y finalizar edición" : "Entrar en modo edición"}"
+                    title="${this._editMode ? "Guardar y salir del modo edición" : "Editar plano (ajustar imagen y elementos flotantes)"}"
+                  >
+                    ${renderIcon(this._editMode ? "check" : "pencil", { size: 18 })}
+                  </button>
+                  <div class="compass" aria-label="Norte">N<span>↑</span></div>
+                </div>
               </div>
             </article>
 
@@ -502,6 +752,46 @@ class WitmindBuildingPanel extends LitElement {
     .trend{display:grid;margin-left:auto;color:var(--muted);font-size:14px;text-align:right}.trend.good{color:var(--green)}.trend.bad{color:var(--danger)}.trend small{color:var(--muted);font-size:7px;font-weight:500}.history-bars{height:69px;display:flex;align-items:flex-end;gap:3px;margin:0 14px 12px;padding:4px 0 18px;border-bottom:1px solid var(--line)}.history-bars i{flex:1;min-width:2px;max-width:18px;background:var(--orange);box-shadow:0 0 7px rgba(242,101,34,.22)}
     .circuits-card{min-height:304px}.circuit-table{min-height:256px}
     @media(max-width:820px){.circuits-card{min-height:308px}.circuit-table{min-height:260px}}
+    .viewport-tools{position:absolute;right:14px;top:14px;z-index:10;display:flex;flex-direction:column;align-items:center;gap:8px}
+    .tool-btn{width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:rgba(5,18,25,.86);color:var(--muted);cursor:pointer;transition:all .18s ease;box-shadow:0 4px 14px rgba(0,0,0,.25);backdrop-filter:blur(8px)}
+    :host([data-theme=light]) .tool-btn{background:rgba(255,255,255,.9);color:#546e7a}
+    .tool-btn:hover{color:#fff;border-color:rgba(242,101,34,.5);background:rgba(14,35,45,.95)}
+    .tool-btn.is-active{background:var(--orange);color:#fff;border-color:var(--orange);box-shadow:0 0 16px rgba(242,101,34,.5)}
+    .edit-toolbar{position:absolute;top:12px;left:12px;right:66px;z-index:9;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;border:1px solid rgba(242,101,34,.35);border-radius:10px;background:rgba(6,20,28,.94);box-shadow:0 8px 24px rgba(0,0,0,.45);backdrop-filter:blur(14px);animation:fadeInDown .18s ease-out}
+    :host([data-theme=light]) .edit-toolbar{background:rgba(255,255,255,.96);border-color:rgba(242,101,34,.4);box-shadow:0 8px 24px rgba(0,0,0,.15)}
+    .toolbar-section{display:flex;align-items:center;gap:10px}
+    .toolbar-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;background:rgba(242,101,34,.18);color:var(--orange);font-size:10px}
+    .toolbar-badge strong{letter-spacing:.05em}
+    .toolbar-badge span{color:#fff;font-size:9px;padding-left:4px;border-left:1px solid rgba(242,101,34,.3)}
+    :host([data-theme=light]) .toolbar-badge span{color:#14232a}
+    .toolbar-hint{color:var(--muted);font-size:9px}
+    .toolbar-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .control-group{display:flex;align-items:center;gap:4px;padding:2px 6px;border:1px solid var(--line);border-radius:7px;background:rgba(0,0,0,.22)}
+    :host([data-theme=light]) .control-group{background:rgba(0,0,0,.04)}
+    .control-label{font-size:9px;color:var(--muted);padding-right:3px;font-variant-numeric:tabular-nums}
+    .btn-ctrl{min-width:24px;height:24px;padding:0 5px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:5px;background:var(--surface-2);color:#eaf0f1;font-size:11px;font-weight:700;cursor:pointer}
+    :host([data-theme=light]) .btn-ctrl{color:#14232a}
+    .btn-ctrl:hover:not(:disabled){border-color:var(--orange);background:rgba(242,101,34,.2)}
+    .btn-ctrl:disabled{opacity:.35;cursor:not-allowed}
+    .btn-ctrl.btn-reset{font-size:9px;font-weight:500}
+    .toolbar-actions{display:flex;align-items:center;gap:6px}
+    .btn-action{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 9px;border-radius:6px;font-size:9.5px;font-weight:600;cursor:pointer;border:1px solid transparent}
+    .btn-action.btn-danger{background:rgba(255,77,95,.12);color:#ff6b7a;border-color:rgba(255,77,95,.28)}
+    .btn-action.btn-danger:hover{background:rgba(255,77,95,.22)}
+    .btn-action.btn-primary{background:var(--orange);color:#fff}
+    .btn-action.btn-primary:hover{background:#ff7537;box-shadow:0 0 12px rgba(242,101,34,.4)}
+    .floor-stage.is-editing{cursor:grab}
+    .floor-stage.is-editing:active{cursor:grabbing}
+    .floor-picture{display:block;width:100%;height:100%;transition:transform .08s ease-out;will-change:transform}
+    .zone-overlay.is-editing{cursor:grab;border:1px dashed var(--orange)!important;background:rgba(6,24,34,.94)!important;box-shadow:0 0 12px rgba(242,101,34,.4)!important;touch-action:none;user-select:none;pointer-events:auto!important}
+    :host([data-theme=light]) .zone-overlay.is-editing{background:rgba(255,255,255,.96)!important}
+    .zone-overlay.is-editing:active{cursor:grabbing;box-shadow:0 0 18px rgba(242,101,34,.65)!important;z-index:20}
+    .overlay-header{display:flex;align-items:center;gap:5px}
+    .drag-handle{display:inline-flex;color:var(--orange)}
+    .empty-badge{font-size:7px;color:var(--muted);font-style:italic}
+    @keyframes fadeInDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+    @media(max-width:820px){.edit-toolbar{right:58px;padding:6px 8px;gap:6px}.toolbar-hint{display:none}}
+    @media(max-width:520px){.edit-toolbar{right:52px;top:8px;left:8px}.toolbar-section{width:100%}}
   `;
 }
 

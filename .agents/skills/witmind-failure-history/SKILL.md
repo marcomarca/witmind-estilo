@@ -39,6 +39,8 @@ description: Registro histórico sintetizado y cronológico de fallas, regresion
 | `0.6.2` | `0.6.3` | [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts), [`src/building-config.ts`](file:///c:/dev/automatizacion-estilo/src/building-config.ts) | Tarjetas flotantes sobre el plano desalineadas al cambiar entre desktop, tablet y móvil; Mindtec y Oficina grande superpuestas en la misma sala. | Letterboxing del plano desplazaba `.floor-overlays` al calcular porcentajes sobre `.floor-viewport` y no sobre el plano; coordenadas de habitaciones no coincidían con el plano arquitectónico. |
 | `0.6.4` | `0.6.5` | [`src/witmind-admin-panel.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-admin-panel.ts), [`src/notifications-model.ts`](file:///c:/dev/automatizacion-estilo/src/notifications-model.ts) | Pérdida de editor en notificaciones, acumulación de suscripciones y bloqueo para reparar 361 errores de identidad obsoleta. | Interfaz unificada carecía de wizard de 4 pasos, acumulaba listeners de WebSocket en cada `_load()` y no preservaba inputs ante eventos concurrentes de Home Assistant. |
 | `0.6.5` | `0.6.6` | [`src/witmind-admin-panel.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-admin-panel.ts), [`src/notifications-model.ts`](file:///c:/dev/automatizacion-estilo/src/notifications-model.ts) | Contraste ilegible en modo claro, colapso de icono de papelera y recorte de botones de acción en modales móviles. | Colores de métricas hardcodeados en blanco sobre fondo claro, SVG de papelera sin dimensiones explícitas y modal sin flexbox vertical con scroll interno. |
+| `0.6.6` | `0.6.7` | [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts), [`tools/optimize-floor-plans.mjs`](file:///c:/dev/automatizacion-estilo/tools/optimize-floor-plans.mjs) | Planos 2D pesaban ~5.7 MB y no soportaban temas claro/oscuro ni aspect-ratio específico. | Falta de pipeline WebP y aspecto rígido 1536/1024 en contenedor de Planta Alta. |
+| `0.6.7` | `0.6.8` | [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts), [`src/building-layout-store.ts`](file:///c:/dev/automatizacion-estilo/src/building-layout-store.ts) | Tarjetas flotantes y posición del plano rígidas, requiriendo intervención en código para mover popups. | Falta de modo edición interactivo, drag & drop con Pointer Events y persistencia en localStorage. |
 
 ---
 
@@ -245,5 +247,23 @@ Antes de promover una release o dar por concluido un cambio, verificar:
   3. `aspect-ratio` dinámico en `.floor-stage` (1536/1024 para Planta Baja y 1448/1086 para Planta Alta).
   4. Pruebas y verificación HTTP 200 en Home Assistant OS.
 - **Regla preventiva**: Los planos arquitectónicos deben servirse siempre con formato dual WebP/PNG y su contenedor debe reflejar la relación de aspecto exacta de la planta para evitar deformaciones anamórficas.
+
+---
+
+### MEJORA L: Modo Edición Visual de Plano 2D y Overlays Persistentes (0.6.7 $\rightarrow$ 0.6.8)
+- **Rutas afectadas**: [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts), [`src/building-layout-store.ts`](file:///c:/dev/automatizacion-estilo/src/building-layout-store.ts) y [`src/utilities/icon.ts`](file:///c:/dev/automatizacion-estilo/src/utilities/icon.ts).
+- **Síntoma / Necesidad**: La calibración de la posición del plano 2D y la ubicación de las tarjetas emergentes (popups/overlays) de cada zona dependían de coordenadas estáticas hardcodeadas. Cualquier ajuste de diseño requería editar código y recompilar. El usuario solicitó un botón de lápiz en la esquina superior derecha que permitiera entrar en modo edición, arrastrar visualmente las tarjetas y calibrar la posición/zoom del plano de forma persistente.
+- **Causa raíz técnica**:
+  1. No existía capa de persistencia desacoplada para coordenadas del plano y overlays.
+  2. Los gestos de swipe (`_onTouchStart`, `_onPointerDown`, `_finishFloorSwipe`) podían interferir con el arrastre de elementos individuales dentro del plano.
+  3. No se utilizaba `setPointerCapture` para seguimiento ininterrumpido de punteros/dedos al mover tarjetas rápidamente.
+- **Solución implementada en `0.6.8`**:
+  1. **Layout Store desacoplado (`src/building-layout-store.ts`)**: Manejo de coordenadas en porcentajes relativos a `.floor-stage`, con clamping estricto (`0%` a `100% - width%`), sanitización de zoom/offset y persistencia en `localStorage` (`witmind_building_layout_v1`).
+  2. **Botón Lápiz y Barra de Edición**: Botón `.pencil-btn` flotante en la esquina superior derecha del viewport. Al activarlo, despliega `.edit-toolbar` con controles de paneo direccional (← ↑ ↓ →), zoom (+ / -), centrado, restablecimiento de planta y botón para guardar/salir.
+  3. **Arrastre de Overlays con Pointer Events**: Cada `.zone-overlay` en modo edición cuenta con `setPointerCapture` en `pointerdown`, normalización delta a porcentajes y feedback visual (borde cian punteado, cursor `grab`/`grabbing`).
+  4. **Protección contra Swipes y Clics no deseados**: Durante `_editMode === true`, los gestos de deslizamiento horizontal entre plantas quedan completamente inhibidos.
+  5. **Suite de pruebas unitarias**: [`src/tests/unit/building-customizer.test.ts`](file:///c:/dev/automatizacion-estilo/src/tests/unit/building-customizer.test.ts) validando carga por defecto, persistencia, sujeción a bordes y restablecimiento.
+- **Regla preventiva**: Todo modo de edición con arrastre interactivo en web components debe capturar el puntero mediante `setPointerCapture`, inhibir explícitamente los gestos de swipe globales del contenedor padre y usar unidades relativas en porcentaje respecto al contenedor de aspecto ratio controlado.
+
 
 

@@ -46,6 +46,12 @@ import {
   TrendingUp,
   Grid,
   Info,
+  Pencil,
+  Move,
+  RotateCcw,
+  Save,
+  ZoomIn,
+  ZoomOut,
   type IconNode
 } from "lucide";
 
@@ -95,7 +101,14 @@ const iconMap: Record<string, IconNode> = {
   gauge: Gauge,
   "trending-up": TrendingUp,
   grid: Grid,
-  info: Info
+  info: Info,
+  pencil: Pencil,
+  edit: Pencil,
+  move: Move,
+  "rotate-ccw": RotateCcw,
+  save: Save,
+  "zoom-in": ZoomIn,
+  "zoom-out": ZoomOut
 };
 
 export interface IconOptions {
