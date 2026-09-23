@@ -57,12 +57,20 @@ describe("Building Layout Customizer Store", () => {
     expect(clampedOver.scale).toBe(2.0);
   });
 
-  it("clamps overlay percentages within bounds to prevent falling outside viewport", () => {
-    const overlay = sanitizeOverlay("ground.showroom", { left: 95, top: -10, width: 22 }, 22);
-    // left cannot exceed 100 - width = 78
-    expect(overlay.left).toBe(78);
-    expect(overlay.top).toBe(0);
-    expect(overlay.width).toBe(22);
+  it("allows free movement beyond old 0..100 boundary while clamping extreme values", () => {
+    // Allows placing overlays outside the blueprint into surrounding canvas margins
+    const marginOverlay = sanitizeOverlay("ground.showroom", { left: -15, top: -8, width: 28, scale: 1.2 }, 22);
+    expect(marginOverlay.left).toBe(-15);
+    expect(marginOverlay.top).toBe(-8);
+    expect(marginOverlay.width).toBe(28);
+    expect(marginOverlay.scale).toBe(1.2);
+
+    // Clamps extreme positions
+    const clampedExtreme = sanitizeOverlay("ground.showroom", { left: 200, top: -50, width: 5, scale: 3 }, 22);
+    expect(clampedExtreme.left).toBe(130);
+    expect(clampedExtreme.top).toBe(-25);
+    expect(clampedExtreme.width).toBe(10); // minimum width 10%
+    expect(clampedExtreme.scale).toBe(1.4); // maximum scale 1.4x
   });
 
   it("saves, loads and resets floor layouts reliably in localStorage", () => {

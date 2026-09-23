@@ -11,9 +11,10 @@ export interface FloorImageTransform {
 
 export interface ZoneOverlayPosition {
   zoneId: string;
-  left: number; // Porcentaje 0% - 100%
-  top: number; // Porcentaje 0% - 100%
-  width?: number; // Porcentaje de ancho
+  left: number; // Porcentaje relativo al plano (-40% a 130%)
+  top: number; // Porcentaje relativo al plano (-25% a 120%)
+  width: number; // Porcentaje de ancho (10% a 60%)
+  scale?: number; // Factor de escala (0.7x a 1.4x)
 }
 
 export interface FloorCustomization {
@@ -47,6 +48,7 @@ export function getDefaultOverlaysMap(floor: BuildingFloor): Record<string, Zone
       left: item.left,
       top: item.top,
       width: item.width || 21,
+      scale: 1,
     };
   }
   return result;
@@ -75,11 +77,20 @@ export function sanitizeTransform(input?: Partial<FloorImageTransform>): FloorIm
 }
 
 export function sanitizeOverlay(zoneId: string, input?: Partial<ZoneOverlayPosition>, defaultWidth: number = 21): ZoneOverlayPosition {
-  const width = typeof input?.width === "number" && Number.isFinite(input.width) ? clamp(Math.round(input.width * 10) / 10, 10, 50) : defaultWidth;
-  const maxLeft = Math.max(0, 100 - width);
-  const left = typeof input?.left === "number" && Number.isFinite(input.left) ? clamp(Math.round(input.left * 10) / 10, 0, maxLeft) : 10;
-  const top = typeof input?.top === "number" && Number.isFinite(input.top) ? clamp(Math.round(input.top * 10) / 10, 0, 92) : 10;
-  return { zoneId, left, top, width };
+  const width = typeof input?.width === "number" && Number.isFinite(input.width)
+    ? clamp(Math.round(input.width * 10) / 10, 10, 60)
+    : defaultWidth;
+  const scale = typeof input?.scale === "number" && Number.isFinite(input.scale)
+    ? clamp(Math.round(input.scale * 100) / 100, 0.7, 1.4)
+    : 1;
+  // Permite libre movimiento de los popups fuera de los muros del edificio y en márgenes circundantes
+  const left = typeof input?.left === "number" && Number.isFinite(input.left)
+    ? clamp(Math.round(input.left * 10) / 10, -40, 130)
+    : 10;
+  const top = typeof input?.top === "number" && Number.isFinite(input.top)
+    ? clamp(Math.round(input.top * 10) / 10, -25, 120)
+    : 10;
+  return { zoneId, left, top, width, scale };
 }
 
 export function loadBuildingLayout(): BuildingLayoutStore {

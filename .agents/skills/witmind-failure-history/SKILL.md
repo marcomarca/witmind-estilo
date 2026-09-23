@@ -41,6 +41,7 @@ description: Registro histórico sintetizado y cronológico de fallas, regresion
 | `0.6.5` | `0.6.6` | [`src/witmind-admin-panel.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-admin-panel.ts), [`src/notifications-model.ts`](file:///c:/dev/automatizacion-estilo/src/notifications-model.ts) | Contraste ilegible en modo claro, colapso de icono de papelera y recorte de botones de acción en modales móviles. | Colores de métricas hardcodeados en blanco sobre fondo claro, SVG de papelera sin dimensiones explícitas y modal sin flexbox vertical con scroll interno. |
 | `0.6.6` | `0.6.7` | [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts), [`tools/optimize-floor-plans.mjs`](file:///c:/dev/automatizacion-estilo/tools/optimize-floor-plans.mjs) | Planos 2D pesaban ~5.7 MB y no soportaban temas claro/oscuro ni aspect-ratio específico. | Falta de pipeline WebP y aspecto rígido 1536/1024 en contenedor de Planta Alta. |
 | `0.6.7` | `0.6.8` | [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts), [`src/building-layout-store.ts`](file:///c:/dev/automatizacion-estilo/src/building-layout-store.ts) | Tarjetas flotantes y posición del plano rígidas, requiriendo intervención en código para mover popups. | Falta de modo edición interactivo, drag & drop con Pointer Events y persistencia en localStorage. |
+| `0.6.8` | `0.6.9` | [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts), [`src/building-layout-store.ts`](file:///c:/dev/automatizacion-estilo/src/building-layout-store.ts) | Tarjetas atrapadas en margen invisible (0..78%) y sin posibilidad de redimensionar ancho o escala. | Clamping restrictivo a 0..100-ancho y falta de manija/controles de resize interactivo. |
 
 ---
 
@@ -264,6 +265,22 @@ Antes de promover una release o dar por concluido un cambio, verificar:
   4. **Protección contra Swipes y Clics no deseados**: Durante `_editMode === true`, los gestos de deslizamiento horizontal entre plantas quedan completamente inhibidos.
   5. **Suite de pruebas unitarias**: [`src/tests/unit/building-customizer.test.ts`](file:///c:/dev/automatizacion-estilo/src/tests/unit/building-customizer.test.ts) validando carga por defecto, persistencia, sujeción a bordes y restablecimiento.
 - **Regla preventiva**: Todo modo de edición con arrastre interactivo en web components debe capturar el puntero mediante `setPointerCapture`, inhibir explícitamente los gestos de swipe globales del contenedor padre y usar unidades relativas en porcentaje respecto al contenedor de aspecto ratio controlado.
+
+---
+
+### FALLA M: Encierro en Margen Invisible y Dimensiones Fijas en Overlays del Plano (0.6.8 $\rightarrow$ 0.6.9)
+- **Rutas afectadas**: [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts) y [`src/building-layout-store.ts`](file:///c:/dev/automatizacion-estilo/src/building-layout-store.ts).
+- **Síntoma real**: Al intentar colocar las tarjetas de zona fuera de las habitaciones o en las franjas vacías (letterboxing) del visor del plano, las tarjetas chocaban contra una pared invisible (`left: 0%` o `78%`, `top: 0%` o `92%`), haciendo imposible despejar el dibujo arquitectónico. Asimismo, las dimensiones de las tarjetas eran fijas e inmodificables.
+- **Causa raíz técnica**:
+  1. `sanitizeOverlay` forzaba matemáticamente `left` en `[0, 100 - width]` y `top` en `[0, 92]`, asumiendo erróneamente que una tarjeta nunca debía sobrepasar el plano 2D.
+  2. No existía en el DOM ni en la lógica ningún controlador o manija de redimensionamiento (`resize`).
+- **Solución implementada en `0.6.9`**:
+  1. **Lienzo libre y extendido**: Apertura de límites en `sanitizeOverlay` (`left: -40% a 130%`, `top: -25% a 120%`) y `overflow: visible` en `.floor-stage` y `.floor-overlays`, permitiendo situar tarjetas cómodamente en los márgenes circundantes.
+  2. **Manija interactiva de redimensionamiento (`.resize-handle`)**: Tirador táctil `⤡` en la esquina inferior derecha con `setPointerCapture` para arrastrar el ancho (10% a 60%).
+  3. **Controles rápidos en cabecera**: Botones `[-]` y `[+]` para micro-ajustes de 2% en el ancho con badge informativo.
+  4. **Soporte de escala tipográfica**: Campo `scale?: number` (0.7x a 1.4x) persistente.
+- **Regla preventiva**: En editores de planos o lienzos gráficos, nunca confinar los elementos flotantes a los límites estrictos de la imagen; los usuarios requieren espacio libre en los márgenes exteriores para ubicar etiquetas sin tapar la arquitectura.
+
 
 
 
