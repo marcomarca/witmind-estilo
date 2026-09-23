@@ -46,7 +46,7 @@ const afterInit = await frame.locator("witmind-ui-app").evaluate((app) => {
   window.__witmindWorkspaceIdentity = workspace;
   return {
     workspaces: app.shadowRoot?.querySelectorAll("witmind-workspace").length || 0,
-    active: workspace?.shadowRoot?.querySelector('.dot[aria-current="page"]')?.getAttribute("data-panel"),
+    active: workspace?.shadowRoot?.querySelector('.page')?.getAttribute("data-panel-id") || workspace?._activeId,
     renders: window.__operationsRenderCount,
   };
 });
@@ -57,7 +57,7 @@ const afterDuplicate = await frame.locator("witmind-ui-app").evaluate((app) => {
   const workspace = app.shadowRoot?.querySelector("witmind-workspace");
   return {
     sameWorkspace: workspace === window.__witmindWorkspaceIdentity,
-    active: workspace?.shadowRoot?.querySelector('.dot[aria-current="page"]')?.getAttribute("data-panel"),
+    active: workspace?.shadowRoot?.querySelector('.page')?.getAttribute("data-panel-id") || workspace?._activeId,
     renders: window.__operationsRenderCount,
   };
 });

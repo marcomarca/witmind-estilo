@@ -27,7 +27,7 @@ export interface BuildingLayoutStore {
   upper: FloorCustomization;
 }
 
-export const STORAGE_KEY_LAYOUT = "witmind_building_layout_v1";
+export const STORAGE_KEY_LAYOUT = "witmind_building_layout_v2";
 
 export const DEFAULT_TRANSFORM: FloorImageTransform = {
   x: 0,

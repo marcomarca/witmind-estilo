@@ -8,6 +8,7 @@ import { resolvePointerReleaseCoordinate, resolveSwipeAxis, resolveSwipeDirectio
 type PanelConfig = Record<string, unknown>;
 type HassAdapter = Record<string, unknown>;
 type DragState = { pointerId: number; pointerType: string; startX: number; startY: number; lastX: number; lastY: number; time: number; ignored: boolean; axis: SwipeAxis };
+type WorkspaceNavigationMode = "host" | "carousel";
 
 const LOBBY_CONFIG: PanelConfig = {
   panel_kind: "lobby",
@@ -182,6 +183,7 @@ class WitmindWorkspace extends HTMLElement {
   private _hass: HassAdapter | null = null;
   private _narrow = false;
   private _activeId = "showroom";
+  private _navigationMode: WorkspaceNavigationMode = "carousel";
   private _pages: HTMLElement[] = [];
   private _track: HTMLElement | null = null;
   private _drag: DragState | null = null;
@@ -201,10 +203,41 @@ class WitmindWorkspace extends HTMLElement {
     if (theme === "dark" || theme === "light") this._setTheme(theme);
   };
 
+  set navigationMode(value: WorkspaceNavigationMode) {
+    const mode = value === "host" ? "host" : "carousel";
+    if (this._navigationMode === mode) return;
+    this._navigationMode = mode;
+    this._drag = null;
+    this._touchDrag = null;
+    this._dragging = false;
+    if (this.isConnected) this._mountPages();
+  }
+
+  get navigationMode(): WorkspaceNavigationMode {
+    return this._navigationMode;
+  }
+
   set config(value: PanelConfig) {
     this._config = value && typeof value === "object" ? value : {};
-    this._activeId = safePanelId(this._config.panel_id || this._config.panelId || this._config.panel_kind);
-    if (this.isConnected) this._mountPages();
+    const nextId = safePanelId(this._config.panel_id || this._config.panelId || this._config.panel_kind);
+    this._activeId = nextId;
+    if (this.isConnected) {
+      if (this._navigationMode === "host") {
+        const currentPageId = this._pages[0]?.dataset.panelId;
+        if (currentPageId !== this._activeId || !this._pages.length) {
+          this._mountPages();
+        } else {
+          const definition = this._panelConfigs().find((item) => item.id === this._activeId);
+          const panel = this._pages[0]?.firstElementChild as (HTMLElement & { panel?: unknown }) | null;
+          if (panel && definition) {
+            const tag = panel.tagName.toLowerCase();
+            panel.panel = tag === "showroom-panel" ? { config: definition.config } : definition.config;
+          }
+        }
+      } else {
+        this._mountPages();
+      }
+    }
   }
 
   get config() { return this._config; }
@@ -321,7 +354,12 @@ class WitmindWorkspace extends HTMLElement {
     if (!this._track) return;
     this._track.innerHTML = "";
     this._pages = [];
-    this._panelConfigs().forEach((definition, index) => {
+    const configs = this._panelConfigs();
+    const filtered = configs.filter((item) => item.id === this._activeId);
+    const definitions = this._navigationMode === "host"
+      ? (filtered.length ? filtered : configs.slice(0, 1))
+      : configs;
+    definitions.forEach((definition, index) => {
       const page = document.createElement("section");
       page.className = "page";
       page.dataset.panelId = definition.id;
@@ -357,6 +395,11 @@ class WitmindWorkspace extends HTMLElement {
   private _renderNav() {
     const nav = this.shadowRoot?.querySelector("[data-nav]");
     if (!nav) return;
+    if (this._navigationMode === "host") {
+      nav.classList.add("is-hidden");
+      nav.innerHTML = "";
+      return;
+    }
     const index = this._activeIndex();
     nav.classList.toggle("is-hidden", this._activeId === "general");
     nav.innerHTML = `
@@ -376,7 +419,7 @@ class WitmindWorkspace extends HTMLElement {
   private _onPointerDown(event: PointerEvent) {
     // Touch Events are the canonical path for fingers. Some Android WebViews
     // cancel Pointer Events inside an iframe when its contents rerender.
-    if (event.pointerType === "touch" || !event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
+    if (this._navigationMode === "host" || event.pointerType === "touch" || !event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
     const ignored = this._isSwipeIgnored(event);
     this._drag = {
       pointerId: event.pointerId,
@@ -393,7 +436,7 @@ class WitmindWorkspace extends HTMLElement {
   }
 
   private _onPointerMove(event: PointerEvent) {
-    if (!this._drag || this._drag.ignored || this._drag.pointerId !== event.pointerId || !this._track) return;
+    if (this._navigationMode === "host" || !this._drag || this._drag.ignored || this._drag.pointerId !== event.pointerId || !this._track) return;
     const coalesced = event.getCoalescedEvents?.() || [];
     const latest = coalesced[coalesced.length - 1] || event;
     this._drag.lastX = latest.clientX;
@@ -412,7 +455,7 @@ class WitmindWorkspace extends HTMLElement {
   }
 
   private _onPointerUp(event: PointerEvent) {
-    if (!this._drag || this._drag.pointerId !== event.pointerId) return;
+    if (this._navigationMode === "host" || !this._drag || this._drag.pointerId !== event.pointerId) return;
     const drag = this._drag;
     const cancelled = event.type === "pointercancel";
     if (!cancelled) {
@@ -444,7 +487,7 @@ class WitmindWorkspace extends HTMLElement {
   }
 
   private _onTouchStart(event: TouchEvent) {
-    if (event.touches.length !== 1 || this._drag) return;
+    if (this._navigationMode === "host" || event.touches.length !== 1 || this._drag) return;
     const touch = event.changedTouches[0] || event.touches[0];
     if (!touch) return;
     const ignored = this._isSwipeIgnored(event);
@@ -464,7 +507,7 @@ class WitmindWorkspace extends HTMLElement {
 
   private _onTouchMove(event: TouchEvent) {
     const drag = this._touchDrag;
-    if (!drag || drag.ignored || !this._track) return;
+    if (this._navigationMode === "host" || !drag || drag.ignored || !this._track) return;
     const touch = Array.from(event.touches).find((item) => item.identifier === drag.pointerId);
     if (!touch) return;
     drag.lastX = touch.clientX;
@@ -481,7 +524,7 @@ class WitmindWorkspace extends HTMLElement {
 
   private _onTouchEnd(event: TouchEvent) {
     const drag = this._touchDrag;
-    if (!drag) return;
+    if (this._navigationMode === "host" || !drag) return;
     const cancelled = event.type === "touchcancel";
     const touch = Array.from(event.changedTouches).find((item) => item.identifier === drag.pointerId);
     if (!cancelled && touch) {
@@ -508,6 +551,10 @@ class WitmindWorkspace extends HTMLElement {
   }
 
   private _goTo(target: number | string) {
+    if (this._navigationMode === "host") {
+      this._snap(false);
+      return;
+    }
     const index = typeof target === "string"
       ? this._pages.findIndex((page) => page.dataset.panelId === target)
       : target;
@@ -546,10 +593,14 @@ class WitmindWorkspace extends HTMLElement {
   private _snap(animate = true) {
     if (!this._track) return;
     this._track.classList.toggle("is-dragging", !animate);
+    if (this._navigationMode === "host") {
+      this._track.style.transform = "translate3d(0%, 0, 0)";
+      return;
+    }
     this._track.style.transform = `translate3d(${this._activeIndex() * -100}%, 0, 0)`;
   }
 }
 
 if (!customElements.get("witmind-workspace")) customElements.define("witmind-workspace", WitmindWorkspace);
 
-export { WitmindWorkspace };
+export { WitmindWorkspace, type WorkspaceNavigationMode };

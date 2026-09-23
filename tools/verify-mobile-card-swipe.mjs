@@ -15,6 +15,7 @@ await page.evaluate(() => {
     source: "witmind-ha",
     type: "WITMIND_INIT",
     panelConfig: { panel_id: "lobby", panel_kind: "lobby" },
+    navigationMode: "carousel",
     narrow: true,
     theme: "dark",
     user: { is_admin: true, name: "QA" },

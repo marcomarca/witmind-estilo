@@ -42,6 +42,9 @@ description: Registro histórico sintetizado y cronológico de fallas, regresion
 | `0.6.6` | `0.6.7` | [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts), [`tools/optimize-floor-plans.mjs`](file:///c:/dev/automatizacion-estilo/tools/optimize-floor-plans.mjs) | Planos 2D pesaban ~5.7 MB y no soportaban temas claro/oscuro ni aspect-ratio específico. | Falta de pipeline WebP y aspecto rígido 1536/1024 en contenedor de Planta Alta. |
 | `0.6.7` | `0.6.8` | [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts), [`src/building-layout-store.ts`](file:///c:/dev/automatizacion-estilo/src/building-layout-store.ts) | Tarjetas flotantes y posición del plano rígidas, requiriendo intervención en código para mover popups. | Falta de modo edición interactivo, drag & drop con Pointer Events y persistencia en localStorage. |
 | `0.6.8` | `0.6.9` | [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts), [`src/building-layout-store.ts`](file:///c:/dev/automatizacion-estilo/src/building-layout-store.ts) | Tarjetas atrapadas en margen invisible (0..78%) y sin posibilidad de redimensionar ancho o escala. | Clamping restrictivo a 0..100-ancho y falta de manija/controles de resize interactivo. |
+| `0.6.9` | `0.7.0` | [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts), [`src/witmind-workspace.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-workspace.ts), [`src/witmind-app.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-app.ts) | Doble barra lateral en la vista del edificio y salto accidental entre paneles por swipe horizontal dentro de Home Assistant. | La vista del plano contenía su propia sidebar reservando 200px/70px y el workspace mantenía carrusel global activo compitiendo con la navegación nativa de HA. |
+| `0.7.0` | `0.7.1` | [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts) | Al cambiar dimensiones de la vista, se recortaban habitaciones laterales del plano y los popups flotantes se desfasaban del dibujo. | Las transformaciones CSS (`scale`, `translate`) se aplicaban a `<picture>` de forma aislada sin envolver los `.floor-overlays`, y `.floor-stage` carecía de un lienzo unificado (`.floor-canvas`) con aspect ratio exacto y `object-fit: contain`. |
+| `0.7.1` | `0.7.2` | [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts) | Fallo de build en compilación TypeScript por tipo de `aspectRatio` numérico tratado como string. | Tipado estricto de `aspectRatio: number` en `FLOOR_META` y sincronización de release inmutable hacia HA OS. |
 
 ---
 
@@ -280,6 +283,55 @@ Antes de promover una release o dar por concluido un cambio, verificar:
   3. **Controles rápidos en cabecera**: Botones `[-]` y `[+]` para micro-ajustes de 2% en el ancho con badge informativo.
   4. **Soporte de escala tipográfica**: Campo `scale?: number` (0.7x a 1.4x) persistente.
 - **Regla preventiva**: En editores de planos o lienzos gráficos, nunca confinar los elementos flotantes a los límites estrictos de la imagen; los usuarios requieren espacio libre en los márgenes exteriores para ubicar etiquetas sin tapar la arquitectura.
+
+---
+
+### FALLA N: Doble Barra Lateral y Conflicto de Autoridad de Navegación en Home Assistant (0.6.9 $\rightarrow$ 0.7.0)
+- **Rutas afectadas**: [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts), [`src/witmind-workspace.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-workspace.ts) y [`src/witmind-app.ts`](file:///c:/dev/automatizacion-estilo/src/witmind-app.ts).
+- **Síntoma real**: Al abrir la vista de Control de Edificio (BMS) desde Home Assistant, el usuario se encontraba con dos barras laterales verticales (la nativa de HA y una interna de Witmind de 200px), reduciendo drásticamente el espacio útil del plano. Además, al deslizar horizontalmente la pantalla con el dedo o ratón, la vista cambiaba inesperadamente a Showroom, Lobby u Oficinas, rompiendo la sincronización con la barra lateral de Home Assistant.
+- **Causa raíz técnica**:
+  1. `witmind-building-panel` renderizaba un elemento `<aside class="sidebar">` rígido con su propia marca y 8 botones de sección (algunos deshabilitados).
+  2. `.bms-shell` reservaba `grid-template: 70px 1fr / 200px 1fr` en desktop y `70px 1fr` en tablet, dejando una columna lateral inútil.
+  3. `witmind-workspace` montaba todas las páginas en el DOM y escuchaba eventos Pointer/Touch globales para deslizar el carrusel horizontal sin importar si corría dentro del iframe de Home Assistant.
+- **Solución implementada en `0.7.0`**:
+  1. **Eliminación de la sidebar interna**: Se removió completamente `<aside class="sidebar">` de `witmind-building-panel` y `.bms-shell` pasó a ser un contenedor vertical flexible de ancho completo (`display: flex; flex-direction: column`).
+  2. **Tira contextual horizontal de 5 anclas (`nav.section-nav`)**: Se creó una barra pegajosa (`sticky`) con exactamente cinco botones (`Plano`, `Circuitos`, `Ambiente`, `Alarmas`, `Consumo`) que ejecutan `_scrollTo(id)` nativo. Se definió `scroll-margin-top` en las tarjetas para garantizar visibilidad bajo la cabecera sticky.
+  3. **Autoridad de navegación delegada a Home Assistant (`navigationMode: "host"`)**:
+     - `witmind-workspace` incorpora `navigationMode: "host" | "carousel"`.
+     - Al recibir `WITMIND_INIT` del bridge de HA, `witmind-app` fija el modo en `"host"`.
+     - En modo `"host"`, el workspace monta únicamente la `.page` del `panel_id` solicitado, oculta la barra dock de puntos y desactiva de raíz todos los listeners y transiciones de swipe entre paneles.
+     - En modo autónomo (`carousel`), la navegación clásica de carrusel permanece intacta.
+  4. **Suite E2E de verificación (`tools/verify-building-single-navigation.mjs`)**: Verificación automatizada multirresolución (desktop, tablet, móvil, dark/light) de DOM (0 sidebars, 1 section-nav), scroll de los 5 botones y bloqueo de gestos globales.
+- **Regla preventiva**: En integraciones incrustadas bajo un host contenedor (como Home Assistant), la aplicación hija jamás debe presentar barras laterales globales que compitan con la del host ni interpretar gestos que cambien de vista sin que el host lo haya ordenado.
+
+---
+
+### FALLA O: Desacoplamiento de Coordenadas y Recorte de Habitaciones al Redimensionar el Plano 2D (0.7.0 $\rightarrow$ 0.7.1)
+- **Ruta afectada**: [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts).
+- **Síntoma real**: Al cambiar las dimensiones de la pantalla o rotar entre desktop, tablet y móvil, ciertas habitaciones del plano (como los almacenes en el extremo derecho o la rampa de acceso en la esquina inferior izquierda) quedaban recortadas o escondidas fuera de los bordes visibles. Además, al aplicar transformaciones de escala (zoom) o desplazamiento (pan), los popups emergentes de telemetría flotaban a la deriva desfasándose de las habitaciones físicas sobre el plano arquitectónico.
+- **Causa raíz técnica**:
+  1. **Transformaciones desarticuladas**: La regla de transformación CSS `transform: translate(x%, y%) scale(scale)` se aplicaba individualmente sobre la etiqueta `<picture class="floor-picture">`, mientras que el contenedor de tarjetas `.floor-overlays` residía como un hermano directo no transformado, operando en un sistema de coordenadas diferente.
+  2. **Contenedor rígido vs. aspect ratio**: `.floor-stage` no poseía un sub-lienzo unitario (`.floor-canvas`) con `aspect-ratio: inherit` y `width: 100%; height: 100%`. Esto provocaba que `<img>` con `object-fit: contain` generara bandas negras (letterboxing) variables, mientras que las posiciones de los overlays se calculaban sobre el viewport global y no sobre la superficie real de la imagen.
+  3. **Arrastre desacoplado de la escala**: Los handlers de puntero `_onOverlayPointerDown` y `_onOverlayResizeDown` no dividían los deltas de píxeles entre el factor `scale` actual del plano, generando aceleraciones o frenados no lineales al mover popups bajo zoom.
+- **Solución implementada en `0.7.1`**:
+  1. **Lienzo Unificado (`.floor-canvas`)**: Se anidaron `<picture class="floor-picture">` y `<div class="floor-overlays">` dentro de un mismo elemento contenedor `<div class="floor-canvas">`. La transformación unificada `transform: translate(x%, y%) scale(scale)` se aplica exclusivamente sobre `.floor-canvas`.
+  2. **Aspect Ratio y Contención Estricta**: `.floor-stage` y `.floor-canvas` mantienen `aspect-ratio` nativo (1.500 para Planta Baja y 1.333 para Planta Alta) con `max-width: 100%`, `max-height: 100%` y `object-fit: contain` en la imagen, garantizando que el 100% de las habitaciones y escaleras permanezcan completamente visibles en cualquier resolución.
+  3. **Normalización por Factor de Escala**: En los manejadores `_onOverlayPointerDown` y `_onOverlayResizeDown`, `stageWidth` y `stageHeight` incorporan el factor `scale` (`stageRect.width * scale`), garantizando que el puntero y la tarjeta se muevan 1:1 sin importar el nivel de zoom.
+  4. **Suite E2E de Anclaje Inerte (`tools/verify-floor-overlays-anchor.mjs`)**: Batería de pruebas automatizada que valida la relación de aspecto exacta y la inmutabilidad de las coordenadas relativas de los popups frente a zoom (1.5x) y desplazamientos arbitrarios en desktop, tablet y móvil.
+- **Regla preventiva**: En interfaces gráficas interactivas con superposiciones de datos (HUDs, planos, mapas 2D), la imagen base y los marcadores superpuestos deben compartir obligatoriamente el mismo nodo contenedor con transformación CSS unificada (`.floor-canvas`), y las coordenadas relativas deben calcularse siempre sobre el lienzo transformado.
+
+---
+
+### FALLA P: Tipado Inconsistente de Aspect Ratio y Bloqueo de Compilación (0.7.1 $\rightarrow$ 0.7.2)
+- **Ruta afectada**: [`src/building-control-panel.ts`](file:///c:/dev/automatizacion-estilo/src/building-control-panel.ts).
+- **Síntoma real**: La compilación de TypeScript (`tsc --noEmit`) fallaba al evaluar `aspectRatio` como `string` en lugar de `number`, arrojando errores en operaciones aritméticas de cálculo dimensional de viewport y bloqueando el pipeline de release.
+- **Causa raíz técnica**: `FLOOR_META` definía `aspectRatio: string` mientras los valores declarados (`1536 / 1024`, `1448 / 1086`) y su consumo en `_updateFloorDimensions` realizaban divisiones numéricas y comparaciones relacionales.
+- **Solución implementada en `0.7.2`**:
+  1. Corrección del tipo a `aspectRatio: number` en la interfaz de `FLOOR_META`.
+  2. Validación estricta con `bun x tsc --noEmit` y suite de 40 tests unitarios en Vitest.
+  3. Despliegue y verificación HTTP 200 de la versión `0.7.2` con promoción en `current.json`.
+- **Regla preventiva**: Toda propiedad geométrica o de aspect ratio consumida en lógica de dimensionamiento dinámico debe estar tipada estrictamente como `number` y verificada en el pre-commit con `tsc --noEmit`.
+
 
 
 

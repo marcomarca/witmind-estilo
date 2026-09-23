@@ -63,7 +63,7 @@ const collectEntityIds = (value: unknown, result = new Set<string>()) => {
   return [...result];
 };
 
-type PanelElement = HTMLElement & { hass?: Record<string, unknown>; config?: Record<string, unknown>; narrow?: boolean };
+type PanelElement = HTMLElement & { hass?: Record<string, unknown>; config?: Record<string, unknown>; narrow?: boolean; navigationMode?: "host" | "carousel" };
 
 class WitmindApp extends HTMLElement {
   private client?: PostMessageHaClient;
@@ -77,9 +77,11 @@ class WitmindApp extends HTMLElement {
   private panelConfigSignature = "";
   private appliedTheme = "";
   private pendingNarrow = false;
+  private navigationMode: "host" | "carousel" = "carousel";
   private messageHandler = (event: MessageEvent) => {
     if (event.source !== window.parent || event.data?.protocol !== 1 || event.data?.source !== "witmind-ha") return;
     if (event.data.type === "WITMIND_INIT" && event.data.panelConfig) {
+      this.navigationMode = event.data.navigationMode === "carousel" ? "carousel" : "host";
       const nextConfig = event.data.panelConfig as Record<string, unknown>;
       const nextSignature = JSON.stringify(nextConfig);
       const configChanged = nextSignature !== this.panelConfigSignature;
@@ -93,7 +95,12 @@ class WitmindApp extends HTMLElement {
       this.user = { is_admin: Boolean(event.data.user?.is_admin), name: String(event.data.user?.name || "") };
       this.pendingNarrow = Boolean(event.data.narrow);
       const created = this.ensurePanel();
-      if (!created && configChanged) this.applyPanelConfig();
+      if (!created) {
+        if (this.panel && this.panel.navigationMode !== this.navigationMode) {
+          this.panel.navigationMode = this.navigationMode;
+        }
+        if (configChanged) this.applyPanelConfig();
+      }
       if (this.panel) this.panel.narrow = this.pendingNarrow;
       if (created || configChanged) this.resubscribeWithConfig();
     }
@@ -122,6 +129,7 @@ class WitmindApp extends HTMLElement {
   private ensurePanel() {
     if (this.panel) return false;
     const panel = document.createElement("witmind-workspace") as PanelElement;
+    panel.navigationMode = this.navigationMode;
     panel.config = this.panelConfig;
     panel.narrow = this.pendingNarrow;
     panel.hass = this.createHassAdapter();

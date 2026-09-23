@@ -48,7 +48,6 @@ for (const viewport of viewports) {
       scrollHeight: document.documentElement.scrollHeight,
       floorCard: rect(".floor-card"),
       floorViewport: rect(".floor-viewport"),
-      floorImage: rect(".floor-viewport img"),
       circuitsCard: rect(".circuits-card"),
       circuitTable: rect(".circuit-table"),
     };
